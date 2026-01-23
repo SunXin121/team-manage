@@ -95,7 +95,8 @@
                     </td>
                     <td>
                         <div class="action-buttons">
-                            <button onclick="viewMembers({{ team.id }})" class="btn btn-sm btn-info" title="查看成员">
+                            <button onclick="viewMembers({{ team.id }}, '{{ team.email }}')" class="btn btn-sm btn-info"
+                                title="查看成员">
                                 <i data-lucide="users"></i> 成员
                             </button>
                             <button onclick="refreshTeam({{ team.id }})" class="btn btn-sm btn-secondary" title="刷新">
@@ -123,9 +124,6 @@
 
 {% block extra_js %}
 <script>
-    function viewMembers(teamId) {
-        window.location.href = `/admin/teams/${teamId}/members`;
-    }
 
     async function refreshTeam(teamId) {
         if (!confirm('确定要刷新此 Team 的信息吗?')) {

@@ -104,7 +104,7 @@ body {
 
 /* 侧边栏 */
 .sidebar {
-    width: 260px;
+    width: 210px;
     background-color: transparent;
     padding: 2rem 1rem;
 }
@@ -257,11 +257,14 @@ body {
 /* 表格 */
 .table-container {
     overflow-x: auto;
+    margin: 1rem -1rem;
+    padding: 0 1rem;
 }
 
 .data-table {
     width: 100%;
-    border-collapse: collapse;
+    border-collapse: separate;
+    border-spacing: 0;
 }
 
 .data-table th {
@@ -270,53 +273,85 @@ body {
     color: var(--text-muted);
     font-size: 0.75rem;
     text-transform: uppercase;
-    letter-spacing: 0.05em;
+    letter-spacing: 0.08em;
+    padding: 1rem 1.25rem;
     border-bottom: 1px solid var(--border-glass);
+    text-align: left;
 }
 
 .data-table td {
-    padding: 1rem 0.75rem;
+    padding: 1.25rem;
     border-bottom: 1px solid var(--border-glass);
     color: var(--text-dim);
-    font-size: 0.9rem;
+    font-size: 0.95rem;
+    vertical-align: middle;
+}
+
+.data-table tbody tr {
+    transition: background-color 0.2s ease;
 }
 
 .data-table tbody tr:hover {
-    background-color: rgba(255, 255, 255, 0.02);
+    background-color: rgba(255, 255, 255, 0.03);
+}
+
+.data-table tbody tr:last-child td {
+    border-bottom: none;
 }
 
 /* 状态标识 */
 .status-badge {
     display: inline-flex;
     align-items: center;
-    padding: 0.2rem 0.75rem;
+    padding: 0.25rem 0.85rem;
     border-radius: var(--radius-full);
     font-size: 0.75rem;
-    font-weight: 600;
+    font-weight: 700;
     letter-spacing: 0.02em;
+    white-space: nowrap;
 }
 
 .status-active {
-    background: rgba(16, 185, 129, 0.15);
-    color: #34d399;
+    background: rgba(16, 185, 129, 0.1);
+    color: #10b981;
     border: 1px solid rgba(16, 185, 129, 0.2);
 }
 
 .status-full {
-    background: rgba(245, 158, 11, 0.15);
-    color: #fbbf24;
+    background: rgba(245, 158, 11, 0.1);
+    color: #f59e0b;
     border: 1px solid rgba(245, 158, 11, 0.2);
 }
 
 .status-expired,
 .status-error {
-    background: rgba(239, 68, 68, 0.15);
-    color: #f87171;
+    background: rgba(239, 68, 68, 0.1);
+    color: #ef4444;
     border: 1px solid rgba(239, 68, 68, 0.2);
 }
 
-.member-count {
-    font-weight: 500;
+.badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.2rem 0.6rem;
+    border-radius: var(--radius-sm);
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+
+.badge-info {
+    background: rgba(59, 130, 246, 0.15);
+    color: #60a5fa;
+}
+
+.badge-secondary {
+    background: rgba(148, 163, 184, 0.15);
+    color: #94a3b8;
+}
+
+.badge-success {
+    background: rgba(16, 185, 129, 0.15);
+    color: #34d399;
 }
 
 /* 按钮 */
@@ -324,27 +359,37 @@ body {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    gap: 0.5rem;
+    gap: 0.6rem;
     padding: 0.6rem 1.25rem;
     border: 1px solid transparent;
     border-radius: var(--radius-md);
-    font-size: 0.875rem;
+    font-size: 0.9rem;
     font-weight: 600;
     cursor: pointer;
     text-decoration: none;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    white-space: nowrap;
+}
+
+.btn i {
+    width: 1.1em;
+    height: 1.1em;
 }
 
 .btn-primary {
     background: linear-gradient(135deg, var(--primary), var(--accent));
-    color: white;
-    box-shadow: 0 4px 15px var(--primary-glow);
+    color: #fff;
+    box-shadow: 0 4px 12px var(--primary-glow);
 }
 
 .btn-primary:hover:not(:disabled) {
-    transform: translateY(-2px);
-    box-shadow: 0 6px 20px var(--primary-glow);
+    transform: translateY(-1px);
+    box-shadow: 0 6px 16px var(--primary-glow);
     filter: brightness(1.1);
+}
+
+.btn-primary:active:not(:disabled) {
+    transform: translateY(0);
 }
 
 .btn-secondary {
@@ -358,69 +403,50 @@ body {
     border-color: var(--border-highlight);
 }
 
-.btn-success {
-    background-color: var(--success-color);
-    color: white;
-}
-
-.btn-success:hover:not(:disabled) {
-    background-color: #059669;
-}
-
 .btn-danger {
-    background-color: var(--danger-color);
-    color: white;
+    background-color: rgba(239, 68, 68, 0.1);
+    border: 1px solid rgba(239, 68, 68, 0.2);
+    color: #f87171;
 }
 
 .btn-danger:hover:not(:disabled) {
-    background-color: #dc2626;
-}
-
-.btn-info {
-    background-color: var(--info-color);
-    color: white;
-}
-
-.btn-info:hover:not(:disabled) {
-    background-color: #2563eb;
+    background-color: rgba(239, 68, 68, 0.2);
+    border-color: rgba(239, 68, 68, 0.3);
 }
 
 .btn-sm {
-    padding: 0.375rem 0.75rem;
+    padding: 0.35rem 0.75rem;
     font-size: 0.8rem;
+    gap: 0.4rem;
 }
 
-.btn-block {
-    display: block;
-    width: 100%;
-}
-
-.action-buttons {
-    display: flex;
-    gap: 0.5rem;
+.btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
 }
 
 /* 表单 */
 .form-group {
-    margin-bottom: 1rem;
+    margin-bottom: 1.25rem;
 }
 
 .form-group label {
     display: block;
     margin-bottom: 0.5rem;
-    font-weight: 500;
-    color: var(--text-color);
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--text-dim);
 }
 
 .form-control {
     width: 100%;
-    padding: 0.6rem 1rem;
+    padding: 0.75rem 1rem;
     background-color: rgba(0, 0, 0, 0.2);
     border: 1px solid var(--border-glass);
     border-radius: var(--radius-md);
     color: var(--text-main);
     font-size: 0.95rem;
-    transition: all 0.3s ease;
+    transition: all 0.2s ease;
 }
 
 .form-control:focus {
@@ -428,6 +454,18 @@ body {
     background-color: rgba(0, 0, 0, 0.3);
     border-color: var(--primary);
     box-shadow: 0 0 0 3px var(--primary-glow);
+}
+
+.form-control::placeholder {
+    color: var(--text-muted);
+    opacity: 0.5;
+}
+
+.search-form-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1.25rem;
+    align-items: flex-end;
 }
 
 /* 登录页面 */

@@ -35,49 +35,35 @@
             <span class="info-label">状态:</span>
             <span class="status-badge status-{{ team.status }}">
                 {% if team.status == 'active' %}
-                    可用
+                可用
                 {% elif team.status == 'full' %}
-                    已满
+                已满
                 {% elif team.status == 'expired' %}
-                    已过期
+                已过期
                 {% else %}
-                    异常
+                异常
                 {% endif %}
             </span>
         </div>
     </div>
 </div>
 
-<!-- 添加成员 -->
-<div class="content-section">
-    <h3>添加成员</h3>
-    <form id="addMemberForm" onsubmit="handleAddMember(event)">
-        <div class="form-row">
-            <div class="form-group" style="flex: 1;">
-                <label for="memberEmail">成员邮箱 <span class="required">*</span></label>
-                <input
-                    type="email"
-                    id="memberEmail"
-                    name="memberEmail"
-                    class="form-control"
-                    placeholder="user@example.com"
-                    required
-                >
-            </div>
-            <div class="form-group" style="align-self: flex-end;">
-                <button type="submit" class="btn btn-primary">添加成员</button>
-            </div>
-        </div>
-        <div id="addMemberError" class="error-message" style="display: none;"></div>
-        <div id="addMemberSuccess" class="success-message" style="display: none;"></div>
-    </form>
-</div>
-
 <!-- 成员列表 -->
 <div class="content-section">
     <div class="section-header">
-        <h3>成员列表 ({{ members|length }})</h3>
-        <button onclick="refreshMembers()" class="btn btn-secondary">刷新</button>
+        <div style="display: flex; align-items: center; gap: 1rem;">
+            <h3>成员列表 ({{ members|length }})</h3>
+            <span class="badge badge-info">{{ team.current_members }}/{{ team.max_members }}</span>
+        </div>
+        <div class="action-buttons">
+            <button onclick="showModal('addMemberModal')" class="btn btn-primary" {% if team.current_members>=
+                team.max_members %}disabled title="席位已满"{% endif %}>
+                <i data-lucide="user-plus"></i> 添加成员
+            </button>
+            <button onclick="refreshMembers()" class="btn btn-secondary">
+                <i data-lucide="refresh-cw"></i> 刷新
+            </button>
+        </div>
     </div>
 
     {% if members %}
@@ -89,7 +75,7 @@
                     <th>名称</th>
                     <th>角色</th>
                     <th>加入时间</th>
-                    <th>操作</th>
+                    <th style="text-align: right;">操作</th>
                 </tr>
             </thead>
             <tbody>
@@ -100,19 +86,17 @@
                     <td>
                         <span class="role-badge role-{{ member.role }}">
                             {% if member.role == 'account-owner' %}
-                                所有者
+                            所有者
                             {% else %}
-                                成员
+                            成员
                             {% endif %}
                         </span>
                     </td>
                     <td>{{ member.added_at|format_datetime }}</td>
-                    <td>
+                    <td style="text-align: right;">
                         {% if member.role != 'account-owner' %}
-                        <button
-                            onclick="deleteMember('{{ member.user_id }}', '{{ member.email }}')"
-                            class="btn btn-sm btn-danger"
-                        >
+                        <button onclick="deleteMember('{{ team.id }}', '{{ member.user_id }}', '{{ member.email }}')"
+                            class="btn btn-sm btn-danger">
                             删除
                         </button>
                         {% else %}
@@ -138,84 +122,16 @@
 
 {% block extra_js %}
 <script>
-const teamId = {{ team.id }};
+    // 在页面加载后初始化图标
+    document.addEventListener('DOMContentLoaded', () => {
+        if (window.lucide) lucide.createIcons();
+    });
 
-// 添加成员
-async function handleAddMember(event) {
-    event.preventDefault();
-
-    const email = document.getElementById('memberEmail').value.trim();
-    const errorDiv = document.getElementById('addMemberError');
-    const successDiv = document.getElementById('addMemberSuccess');
-    const submitButton = event.target.querySelector('button[type="submit"]');
-
-    // 隐藏之前的消息
-    errorDiv.style.display = 'none';
-    successDiv.style.display = 'none';
-
-    // 禁用提交按钮
-    submitButton.disabled = true;
-    submitButton.textContent = '添加中...';
-
-    try {
-        const response = await fetch(`/admin/teams/${teamId}/members/add`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ email })
-        });
-
-        const data = await response.json();
-
-        if (response.ok && data.success) {
-            successDiv.textContent = data.message || '成员添加成功！';
-            successDiv.style.display = 'block';
-            // 清空表单
-            document.getElementById('addMemberForm').reset();
-            // 1秒后刷新页面
-            setTimeout(() => location.reload(), 1000);
-        } else {
-            errorDiv.textContent = data.error || '添加失败';
-            errorDiv.style.display = 'block';
-        }
-    } catch (error) {
-        errorDiv.textContent = '网络错误，请稍后重试';
-        errorDiv.style.display = 'block';
-    } finally {
-        submitButton.disabled = false;
-        submitButton.textContent = '添加成员';
-    }
-}
-
-// 删除成员
-async function deleteMember(userId, email) {
-    if (!confirm(`确定要删除成员 "${email}" 吗?\n\n此操作不可恢复!`)) {
-        return;
+    function refreshMembers() {
+        location.reload();
     }
 
-    try {
-        showToast('正在删除...', 'info');
-        const response = await fetch(`/admin/teams/${teamId}/members/${userId}/delete`, {
-            method: 'POST'
-        });
-
-        const data = await response.json();
-
-        if (response.ok && data.success) {
-            showToast('删除成功', 'success');
-            setTimeout(() => location.reload(), 1000);
-        } else {
-            showToast(data.error || '删除失败', 'error');
-        }
-    } catch (error) {
-        showToast('网络错误', 'error');
-    }
-}
-
-// 刷新成员列表
-function refreshMembers() {
-    location.reload();
-}
+    // 注入当前 teamId 供全局使用
+    window.currentTeamId = "{{ team.id }}";
 </script>
 {% endblock %}

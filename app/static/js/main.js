@@ -354,3 +354,126 @@ function downloadCodes() {
     URL.revokeObjectURL(url);
     showToast('下载成功', 'success');
 }
+// === 成员管理逻辑 ===
+
+async function viewMembers(teamId, teamEmail = '') {
+    window.currentTeamId = teamId;
+    const modal = document.getElementById('manageMembersModal');
+    if (!modal) return;
+
+    // 设置基本信息
+    document.getElementById('modalTeamEmail').textContent = teamEmail;
+
+    // 打开模态框
+    showModal('manageMembersModal');
+
+    // 加载成员列表
+    await loadModalMemberList(teamId);
+}
+
+async function loadModalMemberList(teamId) {
+    const tableBody = document.getElementById('modalMembersTableBody');
+    tableBody.innerHTML = '<tr><td colspan="4" style="text-align: center; padding: 2rem;">加载中...</td></tr>';
+
+    try {
+        const result = await apiCall(`/admin/teams/${teamId}/members/list`);
+        if (result.success) {
+            const members = result.data.members;
+            if (members.length === 0) {
+                tableBody.innerHTML = '<tr><td colspan="4" style="text-align: center; padding: 2rem;">暂无成员</td></tr>';
+            } else {
+                tableBody.innerHTML = members.map(m => `
+                    <tr>
+                        <td>${m.email}</td>
+                        <td>
+                            <span class="role-badge role-${m.role}">
+                                ${m.role === 'account-owner' ? '所有者' : '成员'}
+                            </span>
+                        </td>
+                        <td>${formatDateTime(m.added_at)}</td>
+                        <td style="text-align: right;">
+                            ${m.role !== 'account-owner' ? `
+                                <button onclick="deleteMember('${teamId}', '${m.user_id}', '${m.email}', true)" class="btn btn-sm btn-danger">
+                                    <i data-lucide="trash-2"></i> 删除
+                                </button>
+                            ` : '<span class="text-muted">不可删除</span>'}
+                        </td>
+                    </tr>
+                `).join('');
+                if (window.lucide) lucide.createIcons();
+            }
+        } else {
+            tableBody.innerHTML = `<tr><td colspan="4" style="text-align: center; color: var(--danger);">${result.error}</td></tr>`;
+        }
+    } catch (error) {
+        tableBody.innerHTML = '<tr><td colspan="4" style="text-align: center; color: var(--danger);">加载失败</td></tr>';
+    }
+}
+
+async function handleAddMember(event) {
+    event.preventDefault();
+    const form = event.target;
+    const email = form.email.value.trim();
+    const submitButton = document.getElementById('addMemberSubmitBtn');
+    const teamId = window.currentTeamId;
+
+    if (!teamId) {
+        showToast('无法获取 Team ID', 'error');
+        return;
+    }
+
+    submitButton.disabled = true;
+    const originalText = submitButton.innerHTML;
+    submitButton.textContent = '添加中...';
+
+    try {
+        const result = await apiCall(`/admin/teams/${teamId}/members/add`, {
+            method: 'POST',
+            body: JSON.stringify({ email })
+        });
+
+        if (result.success) {
+            showToast('成员添加成功！', 'success');
+            form.reset();
+            // 在模态框模式下，只负载列表
+            if (document.getElementById('manageMembersModal').classList.contains('show')) {
+                await loadModalMemberList(teamId);
+            } else {
+                setTimeout(() => location.reload(), 1500);
+            }
+        } else {
+            showToast(result.error || '添加失败', 'error');
+        }
+    } catch (error) {
+        showToast('网络错误', 'error');
+    } finally {
+        submitButton.disabled = false;
+        submitButton.innerHTML = originalText;
+    }
+}
+
+async function deleteMember(teamId, userId, email, inModal = false) {
+    if (!confirm(`确定要删除成员 "${email}" 吗?\n\n此操作不可恢复!`)) {
+        return;
+    }
+
+    try {
+        showToast('正在删除...', 'info');
+        const result = await apiCall(`/admin/teams/${teamId}/members/${userId}/delete`, {
+            method: 'POST'
+        });
+
+        if (result.success) {
+            showToast('删除成功', 'success');
+            if (inModal) {
+                await loadModalMemberList(teamId);
+            } else {
+                setTimeout(() => location.reload(), 1000);
+            }
+        } else {
+            showToast(result.error || '删除失败', 'error');
+        }
+    } catch (error) {
+        showToast('网络错误', 'error');
+    }
+}

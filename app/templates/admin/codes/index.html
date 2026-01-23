@@ -57,7 +57,7 @@
 <div class="content-section">
     {% if codes %}
     <div class="table-container">
-        <table class="table">
+        <table class="data-table">
             <thead>
                 <tr>
                     <th>兑换码</th>
@@ -66,34 +66,39 @@
                     <th>过期时间</th>
                     <th>使用者邮箱</th>
                     <th>使用时间</th>
-                    <th>操作</th>
+                    <th style="text-align: right;">操作</th>
                 </tr>
             </thead>
             <tbody id="codesTableBody">
                 {% for code in codes %}
                 <tr data-status="{{ code.status }}">
-                    <td><code>{{ code.code }}</code></td>
+                    <td>
+                        <div style="display: flex; align-items: center; gap: 0.5rem;">
+                            <i data-lucide="ticket" style="width: 14px; height: 14px; color: var(--text-muted);"></i>
+                            <code>{{ code.code }}</code>
+                        </div>
+                    </td>
                     <td>
                         {% if code.status == 'unused' %}
-                        <span class="badge badge-success">未使用</span>
+                        <span class="status-badge status-active">未使用</span>
                         {% elif code.status == 'used' %}
-                        <span class="badge badge-info">已使用</span>
+                        <span class="status-badge status-full">已使用</span>
                         {% elif code.status == 'expired' %}
-                        <span class="badge badge-danger">已过期</span>
+                        <span class="status-badge status-error">已过期</span>
                         {% endif %}
                     </td>
                     <td>{{ code.created_at }}</td>
                     <td>{{ code.expires_at if code.expires_at else '永久有效' }}</td>
                     <td>{{ code.used_by_email if code.used_by_email else '-' }}</td>
                     <td>{{ code.used_at if code.used_at else '-' }}</td>
-                    <td>
-                        <div class="action-buttons">
+                    <td style="text-align: right;">
+                        <div class="action-buttons" style="justify-content: flex-end;">
                             <button onclick="copyCode('{{ code.code }}')" class="btn btn-sm btn-secondary" title="复制">
-                                复制
+                                <i data-lucide="copy"></i>
                             </button>
                             {% if code.status == 'unused' %}
                             <button onclick="deleteCode('{{ code.code }}')" class="btn btn-sm btn-danger" title="删除">
-                                删除
+                                <i data-lucide="trash-2"></i>
                             </button>
                             {% endif %}
                         </div>
@@ -105,6 +110,7 @@
     </div>
     {% else %}
     <div class="empty-state">
+        <i data-lucide="package-open" style="width: 48px; height: 48px; margin-bottom: 1rem; opacity: 0.2;"></i>
         <p>暂无兑换码数据</p>
         <button onclick="showModal('generateCodeModal')" class="btn btn-primary">立即生成</button>
     </div>

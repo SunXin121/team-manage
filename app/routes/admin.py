@@ -296,6 +296,38 @@ async def team_members_page(
         )
 
 
+@router.get("/teams/{team_id}/members/list")
+async def team_members_list(
+    team_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(require_admin)
+):
+    """
+    获取 Team 成员列表 (JSON)
+
+    Args:
+        team_id: Team ID
+        db: 数据库会话
+        current_user: 当前用户（需要登录）
+
+    Returns:
+        成员列表 JSON
+    """
+    try:
+        # 获取成员列表
+        result = await team_service.get_team_members(team_id, db)
+        return JSONResponse(content=result)
+    except Exception as e:
+        logger.error(f"获取成员列表失败: {e}")
+        return JSONResponse(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            content={
+                "success": False,
+                "error": f"获取成员列表失败: {str(e)}"
+            }
+        )
+
+
 @router.post("/teams/{team_id}/members/add")
 async def add_team_member(
     team_id: int,
