@@ -2,6 +2,7 @@
 数据库连接模块
 SQLite 异步连接配置和会话管理
 """
+from sqlalchemy import text
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
 from sqlalchemy.orm import declarative_base
 from app.config import settings
@@ -10,7 +11,8 @@ from app.config import settings
 engine = create_async_engine(
     settings.database_url,
     echo=settings.debug,  # 开发环境打印 SQL
-    future=True
+    future=True,
+    connect_args={"timeout": 30}
 )
 
 # 创建异步会话工厂
@@ -44,6 +46,7 @@ async def init_db():
     创建所有表
     """
     async with engine.begin() as conn:
+        await conn.execute(text("PRAGMA journal_mode=WAL"))
         await conn.run_sync(Base.metadata.create_all)
 
 

@@ -152,161 +152,167 @@ class RedeemFlowService:
     ) -> Dict[str, Any]:
         """
         完整的兑换流程 (带事务和并发控制)
-
-        Args:
-            email: 用户邮箱
-            code: 兑换码
-            team_id: Team ID (如果为 None 则自动选择)
-            db_session: 数据库会话
-
-        Returns:
-            结果字典,包含 success, message, team_info, error
+        优化版本: 将网络请求移出写事务,避免 SQLite 锁定
         """
+        team_id_final = None
         try:
-            # 开启事务
-            async with db_session.begin_nested():
+            # --- 阶段 1: 验证并占位 (短事务) ---
+            # 显式管理事务
+            async with db_session.begin():
                 # 1. 验证兑换码
                 validate_result = await self.redemption_service.validate_code(code, db_session)
 
                 if not validate_result["success"]:
-                    return {
-                        "success": False,
-                        "message": None,
-                        "team_info": None,
-                        "error": validate_result["error"]
-                    }
-
+                    return {"success": False, "error": validate_result["error"]}
                 if not validate_result["valid"]:
-                    return {
-                        "success": False,
-                        "message": None,
-                        "team_info": None,
-                        "error": validate_result["reason"]
-                    }
+                    return {"success": False, "error": validate_result["reason"]}
 
-                # 2. 选择 Team (如果未指定则自动选择)
+                # 2. 选择 Team
                 if team_id is None:
                     select_result = await self.select_team_auto(db_session)
                     if not select_result["success"]:
-                        return {
-                            "success": False,
-                            "message": None,
-                            "team_info": None,
-                            "error": select_result["error"]
-                        }
-                    team_id = select_result["team_id"]
+                        return {"success": False, "error": select_result["error"]}
+                    team_id_final = select_result["team_id"]
+                else:
+                    team_id_final = team_id
 
-                # 3. 锁定 Team 行 (FOR UPDATE)
-                stmt = select(Team).where(Team.id == team_id).with_for_update()
+                # 3. 锁定并检查 Team
+                stmt = select(Team).where(Team.id == team_id_final).with_for_update()
                 result = await db_session.execute(stmt)
                 team = result.scalar_one_or_none()
 
                 if not team:
-                    return {
-                        "success": False,
-                        "message": None,
-                        "team_info": None,
-                        "error": f"Team ID {team_id} 不存在"
-                    }
-
-                # 4. 再次检查 Team 容量 (防止并发冲突)
+                    return {"success": False, "error": f"Team ID {team_id_final} 不存在"}
+                
                 if team.current_members >= team.max_members:
-                    return {
-                        "success": False,
-                        "message": None,
-                        "team_info": None,
-                        "error": "Team 已满，请选择其他 Team"
-                    }
-
+                    return {"success": False, "error": "Team 已满，请选择其他 Team"}
+                
                 if team.status != "active":
-                    return {
-                        "success": False,
-                        "message": None,
-                        "team_info": None,
-                        "error": f"Team 状态异常: {team.status}"
-                    }
+                    return {"success": False, "error": f"Team 状态异常: {team.status}"}
 
-                # 5. 解密 AT Token
-                try:
-                    access_token = encryption_service.decrypt_token(team.access_token_encrypted)
-                except Exception as e:
-                    logger.error(f"解密 Token 失败: {e}")
-                    return {
-                        "success": False,
-                        "message": None,
-                        "team_info": None,
-                        "error": f"解密 Token 失败: {str(e)}"
-                    }
-
-                # 6. 调用 ChatGPT API 发送邀请
-                invite_result = await self.chatgpt_service.send_invite(
-                    access_token,
-                    team.account_id,
-                    email,
-                    db_session
-                )
-
-                if not invite_result["success"]:
-                    # API 调用失败，回滚事务
-                    return {
-                        "success": False,
-                        "message": None,
-                        "team_info": None,
-                        "error": f"发送邀请失败: {invite_result['error']}"
-                    }
-
-                # 7. 更新兑换码状态
-                stmt = select(RedemptionCode).where(RedemptionCode.code == code)
+                # 4. 锁定并更新兑换码状态 (先占位，防止并发使用同一码)
+                stmt = select(RedemptionCode).where(RedemptionCode.code == code).with_for_update()
                 result = await db_session.execute(stmt)
                 redemption_code = result.scalar_one_or_none()
+                
+                if not redemption_code or redemption_code.status != "unused":
+                    return {"success": False, "error": "兑换码已被占用或失效"}
 
+                # 先标记为 used，记录必要信息
+                old_status = redemption_code.status
                 redemption_code.status = "used"
                 redemption_code.used_by_email = email
-                redemption_code.used_team_id = team_id
+                redemption_code.used_team_id = team_id_final
                 redemption_code.used_at = get_now()
 
-                # 8. 创建使用记录
-                redemption_record = RedemptionRecord(
-                    email=email,
-                    code=code,
-                    team_id=team_id,
-                    account_id=team.account_id
-                )
-                db_session.add(redemption_record)
-
-                # 9. 更新 Team 成员数
+                # 增加 Team 成员数占位
                 team.current_members += 1
-
-                # 更新状态
                 if team.current_members >= team.max_members:
                     team.status = "full"
+                
+                # 记录 Team 信息以便阶段 2 使用
+                final_team_account_id = team.account_id
+                final_team_name = team.team_name
+                final_team_expires_at = team.expires_at
+                final_access_token_encrypted = team.access_token_encrypted
+                
+                # 事务会自动 commit
+            
+            # --- 阶段 2: 网络请求 (非阻塞事务) ---
+            # 5. 解密 AT Token
+            try:
+                access_token = encryption_service.decrypt_token(final_access_token_encrypted)
+            except Exception as e:
+                logger.error(f"解密 Token 失败: {e}")
+                # 需要回退
+                await self._rollback_redemption(db_session, code, team_id_final)
+                return {"success": False, "error": f"解密 Token 失败: {str(e)}"}
 
-                # 提交嵌套事务
-                await db_session.commit()
+            # 6. 调用 ChatGPT API 发送邀请
+            invite_result = await self.chatgpt_service.send_invite(
+                access_token,
+                final_team_account_id,
+                email,
+                db_session
+            )
 
-                logger.info(f"兑换成功: {email} 加入 Team {team_id} (兑换码: {code})")
-
+            # --- 阶段 3: 最终化或回滚 ---
+            if invite_result["success"]:
+                # 7. 成功：补全记录
+                async with db_session.begin():
+                    redemption_record = RedemptionRecord(
+                        email=email,
+                        code=code,
+                        team_id=team_id_final,
+                        account_id=final_team_account_id
+                    )
+                    db_session.add(redemption_record)
+                
+                logger.info(f"兑换成功: {email} 加入 Team {team_id_final} (兑换码: {code})")
                 return {
                     "success": True,
-                    "message": f"成功加入 Team: {team.team_name}",
+                    "message": f"成功加入 Team: {final_team_name}",
                     "team_info": {
-                        "team_id": team.id,
-                        "team_name": team.team_name,
-                        "account_id": team.account_id,
-                        "expires_at": team.expires_at.isoformat() if team.expires_at else None
+                        "team_id": team_id_final,
+                        "team_name": final_team_name,
+                        "account_id": final_team_account_id,
+                        "expires_at": final_team_expires_at.isoformat() if final_team_expires_at else None
                     },
                     "error": None
                 }
+            else:
+                # 8. 失败：回退阶段 1 的占位
+                logger.warning(f"API 发送邀请失败，执行回退: {invite_result['error']}")
+                await self._rollback_redemption(db_session, code, team_id_final)
+                return {
+                    "success": False,
+                    "error": f"发送邀请失败: {invite_result['error']}"
+                }
 
         except Exception as e:
-            await db_session.rollback()
-            logger.error(f"兑换流程失败: {e}")
+            logger.error(f"兑换流程异常: {e}")
+            # 如果在阶段 2 或 3 发生未捕获异常，尝试回退
+            if team_id_final:
+                try:
+                    await self._rollback_redemption(db_session, code, team_id_final)
+                except:
+                    pass
             return {
                 "success": False,
-                "message": None,
-                "team_info": None,
-                "error": f"兑换失败: {str(e)}"
+                "error": f"兑换系统异常: {str(e)}"
             }
+
+    async def _rollback_redemption(
+        self,
+        db_session: AsyncSession,
+        code: str,
+        team_id: int
+    ):
+        """回退兑换占位"""
+        try:
+            async with db_session.begin():
+                # 回退兑换码状态
+                stmt = select(RedemptionCode).where(RedemptionCode.code == code).with_for_update()
+                result = await db_session.execute(stmt)
+                redemption_code = result.scalar_one_or_none()
+                if redemption_code:
+                    redemption_code.status = "unused"
+                    redemption_code.used_by_email = None
+                    redemption_code.used_team_id = None
+                    redemption_code.used_at = None
+
+                # 回退 Team 计数
+                stmt = select(Team).where(Team.id == team_id).with_for_update()
+                result = await db_session.execute(stmt)
+                team = result.scalar_one_or_none()
+                if team:
+                    if team.current_members > 0:
+                        team.current_members -= 1
+                    if team.status == "full" and team.current_members < team.max_members:
+                        team.status = "active"
+            logger.info(f"已回退兑换占位: code={code}, team_id={team_id}")
+        except Exception as e:
+            logger.error(f"回退兑换占位失败: {e}")
 
 
 # 创建全局实例
