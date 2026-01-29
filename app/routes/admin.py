@@ -24,6 +24,8 @@ router = APIRouter(
     tags=["admin"]
 )
 
+import json
+
 # 服务实例
 team_service = TeamService()
 redemption_service = RedemptionService()
@@ -218,13 +220,14 @@ async def team_import(
 
             return JSONResponse(content=result)
 
+        elif import_data.import_type == "batch":
             # 批量导入使用 StreamingResponse
             async def progress_generator():
-                async for status in team_service.import_team_batch(
+                async for status_item in team_service.import_team_batch(
                     text=import_data.content,
                     db_session=db
                 ):
-                    yield json.dumps(status, ensure_ascii=False) + "\n"
+                    yield json.dumps(status_item, ensure_ascii=False) + "\n"
 
             return StreamingResponse(
                 progress_generator(),
