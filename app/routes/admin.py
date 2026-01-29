@@ -56,6 +56,7 @@ class CodeGenerateRequest(BaseModel):
 async def admin_dashboard(
     request: Request,
     page: int = 1,
+    search: Optional[str] = None,
     db: AsyncSession = Depends(get_db),
     current_user: dict = Depends(require_admin)
 ):
@@ -64,6 +65,8 @@ async def admin_dashboard(
 
     Args:
         request: FastAPI Request 对象
+        page: 页码
+        search: 搜索词
         db: 数据库会话
         current_user: 当前用户（需要登录）
 
@@ -74,11 +77,11 @@ async def admin_dashboard(
         # 导入模板引擎
         from app.main import templates
 
-        logger.info("管理员访问控制台")
+        logger.info(f"管理员访问控制台, search={search}")
 
         # 获取 Team 列表 (分页)
         per_page = 20
-        teams_result = await team_service.get_all_teams(db, page=page, per_page=per_page)
+        teams_result = await team_service.get_all_teams(db, page=page, per_page=per_page, search=search)
         teams = teams_result.get("teams", [])
         total_teams = teams_result.get("total", 0)
         total_pages = teams_result.get("total_pages", 1)
@@ -94,7 +97,7 @@ async def admin_dashboard(
 
         # 计算统计数据
         stats = {
-            "total_teams": total_teams,
+            "total_teams": len(all_teams),
             "available_teams": len([t for t in all_teams if t["status"] == "active" and t["current_members"] < t["max_members"]]),
             "total_codes": len(all_codes),
             "used_codes": len([c for c in all_codes if c["status"] == "used"])
@@ -108,6 +111,7 @@ async def admin_dashboard(
                 "active_page": "dashboard",
                 "teams": teams,
                 "stats": stats,
+                "search": search,
                 "pagination": {
                     "current_page": current_page,
                     "total_pages": total_pages,

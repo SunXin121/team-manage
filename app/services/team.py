@@ -1070,7 +1070,8 @@ class TeamService:
         self,
         db_session: AsyncSession,
         page: int = 1,
-        per_page: int = 20
+        per_page: int = 20,
+        search: Optional[str] = None
     ) -> Dict[str, Any]:
         """
         获取所有 Team 列表 (用于管理员页面)
@@ -1079,29 +1080,46 @@ class TeamService:
             db_session: 数据库会话
             page: 页码
             per_page: 每页数量
+            search: 搜索关键词
 
         Returns:
             结果字典,包含 success, teams, total, total_pages, current_page, error
         """
         try:
-            # 1. 获取总数
-            count_stmt = select(func.count(Team.id))
+            # 1. 构建查询语句
+            stmt = select(Team)
+            
+            # 2. 如果有搜索词,添加过滤条件
+            if search:
+                from sqlalchemy import or_, cast, String
+                search_filter = f"%{search}%"
+                stmt = stmt.where(
+                    or_(
+                        Team.email.ilike(search_filter),
+                        Team.account_id.ilike(search_filter),
+                        Team.team_name.ilike(search_filter),
+                        cast(Team.id, String).ilike(search_filter)
+                    )
+                )
+
+            # 3. 获取总数
+            count_stmt = select(func.count()).select_from(stmt.subquery())
             count_result = await db_session.execute(count_stmt)
             total = count_result.scalar() or 0
 
-            # 2. 计算分页
+            # 4. 计算分页
             import math
             total_pages = math.ceil(total / per_page) if total > 0 else 1
             if page < 1:
                 page = 1
-            if page > total_pages:
+            if total_pages > 0 and page > total_pages:
                 page = total_pages
             
             offset = (page - 1) * per_page
 
-            # 3. 查询分页数据
-            stmt = select(Team).order_by(Team.created_at.desc()).limit(per_page).offset(offset)
-            result = await db_session.execute(stmt)
+            # 5. 查询分页数据
+            final_stmt = stmt.order_by(Team.created_at.desc()).limit(per_page).offset(offset)
+            result = await db_session.execute(final_stmt)
             teams = result.scalars().all()
 
             # 构建返回数据

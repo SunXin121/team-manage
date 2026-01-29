@@ -43,9 +43,25 @@
 <div class="content-section">
     <div class="section-header">
         <h3>Team 列表</h3>
-        <button onclick="showModal('importTeamModal')" class="btn btn-primary">
-            <i data-lucide="plus-circle"></i> 导入 Team
-        </button>
+        <div class="header-actions">
+            <form action="/admin" method="get" class="search-form" style="margin-right: 1rem;">
+                <div class="search-input-group">
+                    <input type="text" name="search" value="{{ search or '' }}" placeholder="搜索邮箱、Account ID 或名称..."
+                        class="btn-sm">
+                    <button type="submit" class="btn btn-sm btn-secondary">
+                        <i data-lucide="search" style="width: 14px; height: 14px;"></i>
+                    </button>
+                    {% if search %}
+                    <a href="/admin" class="btn btn-sm btn-danger" title="清除搜索">
+                        <i data-lucide="x" style="width: 14px; height: 14px;"></i>
+                    </a>
+                    {% endif %}
+                </div>
+            </form>
+            <button onclick="showModal('importTeamModal')" class="btn btn-primary">
+                <i data-lucide="plus-circle"></i> 导入 Team
+            </button>
+        </div>
     </div>
 
     {% if teams %}
@@ -121,20 +137,22 @@
     <!-- 分页 -->
     {% if pagination.total_pages > 1 %}
     <div class="pagination">
+        {% set search_param = '&search=' + search if search else '' %}
+
         {% if pagination.current_page > 1 %}
-        <a href="?page=1" class="btn btn-sm btn-secondary">首页</a>
-        <a href="?page={{ pagination.current_page - 1 }}" class="btn btn-sm btn-secondary">
+        <a href="?page=1{{ search_param }}" class="btn btn-sm btn-secondary">首页</a>
+        <a href="?page={{ pagination.current_page - 1 }}{{ search_param }}" class="btn btn-sm btn-secondary">
             <i data-lucide="chevron-left" style="width: 14px; height: 14px;"></i>
         </a>
         {% endif %}
 
         <span class="pagination-info">第 {{ pagination.current_page }} / {{ pagination.total_pages }} 页</span>
 
-        {% if pagination.current_page < pagination.total_pages %} <a href="?page={{ pagination.current_page + 1 }}"
-            class="btn btn-sm btn-secondary">
+        {% if pagination.current_page < pagination.total_pages %} <a
+            href="?page={{ pagination.current_page + 1 }}{{ search_param }}" class="btn btn-sm btn-secondary">
             <i data-lucide="chevron-right" style="width: 14px; height: 14px;"></i>
             </a>
-            <a href="?page={{ pagination.total_pages }}" class="btn btn-sm btn-secondary">末页</a>
+            <a href="?page={{ pagination.total_pages }}{{ search_param }}" class="btn btn-sm btn-secondary">末页</a>
             {% endif %}
     </div>
     {% endif %}
@@ -149,6 +167,34 @@
 
 {% block extra_css %}
 <style>
+    .header-actions {
+        display: flex;
+        align-items: center;
+    }
+
+    .search-input-group {
+        display: flex;
+        align-items: center;
+        background: var(--bg-secondary);
+        border: 1px solid var(--border-color);
+        border-radius: 6px;
+        padding: 2px;
+    }
+
+    .search-input-group input {
+        border: none;
+        background: transparent;
+        padding: 0.4rem 0.8rem;
+        outline: none;
+        color: var(--text-primary);
+        min-width: 250px;
+    }
+
+    .search-input-group .btn {
+        padding: 0.4rem 0.6rem;
+        border-radius: 4px;
+    }
+
     .pagination {
         display: flex;
         justify-content: center;
