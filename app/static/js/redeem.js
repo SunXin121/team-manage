@@ -414,7 +414,15 @@ function showWarrantyResult(data) {
                                 <div style="display: grid; grid-template-columns: 1fr 1.2fr; gap: 1rem; font-size: 0.9rem;">
                                     <div>
                                         <div style="color: var(--text-muted); margin-bottom: 0.2rem;">加入 Team</div>
-                                        <div style="font-weight: 500;">${escapeHtml(record.team_name || '未知 Team')} ${teamStatusBadge}</div>
+                                        <div style="font-weight: 500; display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+                                            <span>${escapeHtml(record.team_name || '未知 Team')}</span>
+                                            <span>${teamStatusBadge}</span>
+                                            ${(record.has_warranty && record.warranty_valid && (record.team_status === 'banned' || record.team_status === 'error')) ? `
+                                            <button onclick="oneClickReplace('${escapeHtml(record.code)}', '${escapeHtml(record.email || currentEmail)}')" class="btn btn-xs btn-primary" style="padding: 2px 8px; font-size: 0.75rem; height: auto; min-height: 0;">
+                                                一键换车
+                                            </button>
+                                            ` : ''}
+                                        </div>
                                     </div>
                                     <div>
                                         <div style="color: var(--text-muted); margin-bottom: 0.2rem;">兑换时间</div>
@@ -429,13 +437,6 @@ function showWarrantyResult(data) {
                                     </div>
                                     ` : ''}
                                 </div>
-                                ${(data.can_reuse && (record.team_status === 'banned' || record.team_status === 'error')) ? `
-                                <div style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid rgba(255,255,255,0.05); text-align: right;">
-                                    <button onclick="oneClickReplace('${escapeHtml(data.original_code)}', '${escapeHtml(record.email || currentEmail)}')" class="btn btn-sm btn-primary">
-                                        <i data-lucide="refresh-cw" style="width: 14px; height: 14px; margin-right: 4px;"></i> 一键换车
-                                    </button>
-                                </div>
-                                ` : ''}
                             </div>
                         `;
         }).join('')}
