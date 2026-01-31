@@ -675,6 +675,29 @@ class TeamService:
             current_members = 0
             if members_result["success"]:
                 current_members = members_result["total"]
+            else:
+                # 检查是否封号或 Token 失效
+                if await self._handle_api_error(members_result, team, db_session):
+                    error_msg = members_result.get("error", "未知错误")
+                    if members_result.get("error_code") == "account_deactivated":
+                        error_msg = "账号已封禁 (account_deactivated)"
+                    elif members_result.get("error_code") == "token_invalidated":
+                        error_msg = "Token 已失效 (token_invalidated)"
+                        
+                    return {
+                        "success": False,
+                        "message": None,
+                        "error": error_msg
+                    }
+                
+                # 其他错误,仅标记为 error
+                team.status = "error"
+                await db_session.commit()
+                return {
+                    "success": False,
+                    "message": None,
+                    "error": f"获取成员列表失败: {members_result['error']}"
+                }
 
             # 6. 解析过期时间
             expires_at = None
@@ -841,6 +864,21 @@ class TeamService:
             )
 
             if not members_result["success"]:
+                # 检查是否封号或 Token 失效
+                if await self._handle_api_error(members_result, team, db_session):
+                    error_msg = members_result.get("error", "未知错误")
+                    if members_result.get("error_code") == "account_deactivated":
+                        error_msg = "账号已封禁 (account_deactivated)"
+                    elif members_result.get("error_code") == "token_invalidated":
+                        error_msg = "Token 已失效 (token_invalidated)"
+                        
+                    return {
+                        "success": False,
+                        "members": [],
+                        "total": 0,
+                        "error": error_msg
+                    }
+
                 return {
                     "success": False,
                     "members": [],
@@ -854,6 +892,22 @@ class TeamService:
                 team.account_id,
                 db_session
             )
+            
+            if not invites_result["success"]:
+                # 检查是否封号或 Token 失效
+                if await self._handle_api_error(invites_result, team, db_session):
+                    error_msg = invites_result.get("error", "未知错误")
+                    if invites_result.get("error_code") == "account_deactivated":
+                        error_msg = "账号已封禁 (account_deactivated)"
+                    elif invites_result.get("error_code") == "token_invalidated":
+                        error_msg = "Token 已失效 (token_invalidated)"
+                        
+                    return {
+                        "success": False,
+                        "members": [],
+                        "total": 0,
+                        "error": error_msg
+                    }
 
             # 5. 合并列表并统一格式
             all_members = []
