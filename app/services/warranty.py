@@ -4,11 +4,11 @@
 """
 import logging
 from typing import Optional, Dict, Any, List
-from datetime import datetime, timedelta
+from datetime import timedelta
 from sqlalchemy import select, and_, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models import RedemptionCode, RedemptionRecord, Team
+from app.models import RedemptionCode, Team, InviteRecord
 from app.utils.time_utils import get_now
 
 logger = logging.getLogger(__name__)
@@ -52,7 +52,7 @@ class WarrantyService:
                 }
 
             # 0. 频率限制 (每个邮箱或每个码 30 秒只能查一次)
-            now = datetime.now()
+            now = get_now()
             limit_key = ("email", email) if email else ("code", code)
             last_time = _query_rate_limit.get(limit_key)
             if last_time and (now - last_time).total_seconds() < 30:
@@ -69,11 +69,12 @@ class WarrantyService:
             if code:
                 # 通过兑换码查找所有关联记录
                 stmt = (
-                    select(RedemptionRecord, RedemptionCode, Team)
-                    .join(RedemptionCode, RedemptionRecord.code == RedemptionCode.code)
-                    .join(Team, RedemptionRecord.team_id == Team.id)
+                    select(InviteRecord, RedemptionCode, Team)
+                    .join(RedemptionCode, InviteRecord.source_code == RedemptionCode.code)
+                    .join(Team, InviteRecord.team_id == Team.id)
                     .where(RedemptionCode.code == code)
-                    .order_by(RedemptionRecord.redeemed_at.desc())
+                    .where(InviteRecord.source_type == "redeem_code")
+                    .order_by(InviteRecord.invited_at.desc())
                 )
                 result = await db_session.execute(stmt)
                 first_record = result.first()
@@ -128,11 +129,12 @@ class WarrantyService:
             elif email:
                 # 通过邮箱查找所有兑换记录
                 stmt = (
-                    select(RedemptionRecord, RedemptionCode, Team)
-                    .join(RedemptionCode, RedemptionRecord.code == RedemptionCode.code)
-                    .join(Team, RedemptionRecord.team_id == Team.id)
-                    .where(RedemptionRecord.email == email)
-                    .order_by(RedemptionRecord.redeemed_at.desc())
+                    select(InviteRecord, RedemptionCode, Team)
+                    .join(RedemptionCode, InviteRecord.source_code == RedemptionCode.code)
+                    .join(Team, InviteRecord.team_id == Team.id)
+                    .where(InviteRecord.email == email)
+                    .where(InviteRecord.source_type == "redeem_code")
+                    .order_by(InviteRecord.invited_at.desc())
                 )
                 result = await db_session.execute(stmt)
                 all_records = result.all()
@@ -141,10 +143,10 @@ class WarrantyService:
                 seen_codes = set()
                 records_data = []
                 for row in all_records:
-                    # row format: (RedemptionRecord, RedemptionCode, Team)
-                    record_obj = row[0]
-                    if record_obj.code not in seen_codes:
-                        seen_codes.add(record_obj.code)
+                    # row format: (InviteRecord, RedemptionCode, Team)
+                    invite_record_obj = row[0]
+                    if invite_record_obj.source_code not in seen_codes:
+                        seen_codes.add(invite_record_obj.source_code)
                         records_data.append(row)
 
             if not records_data:
@@ -169,7 +171,7 @@ class WarrantyService:
             primary_code = None
             can_reuse = False
 
-            for record, code_obj, team in records_data:
+            for invite_record, code_obj, team in records_data:
                 # 同步 Team 状态
                 if team.status not in ["banned", "error"]:
                     logger.info(f"质保查询: 正在实时测试 Team {team.id} ({team.team_name}) 的状态")
@@ -181,7 +183,7 @@ class WarrantyService:
                 
                 # 如果是质保码且已使用，但到期时间为空，尝试动态计算
                 if code_obj.has_warranty and not expiry_date:
-                    start_time = code_obj.used_at or record.redeemed_at # 优先取首次使用时间
+                    start_time = code_obj.used_at or invite_record.invited_at # 优先取首次使用时间
                     if start_time:
                         days = code_obj.warranty_days or 30
                         expiry_date = start_time + timedelta(days=days)
@@ -219,12 +221,12 @@ class WarrantyService:
                     "warranty_valid": is_valid,
                     "warranty_expires_at": expiry_date.isoformat() if expiry_date else None,
                     "status": code_obj.status,
-                    "used_at": record.redeemed_at.isoformat() if record.redeemed_at else None,
+                    "used_at": invite_record.invited_at.isoformat() if invite_record.invited_at else None,
                     "team_id": team.id,
                     "team_name": team.team_name,
                     "team_status": team.status,
                     "team_expires_at": team.expires_at.isoformat() if team.expires_at else None,
-                    "email": record.email
+                    "email": invite_record.email
                 })
 
             # 3. 判断是否可以重复使用 (只要有有效的质保码且有被封的 Team)
@@ -303,12 +305,13 @@ class WarrantyService:
                     }
 
             # 4. 查找该用户使用该兑换码的所有记录
-            stmt = select(RedemptionRecord).where(
+            stmt = select(InviteRecord).where(
                 and_(
-                    RedemptionRecord.code == code,
-                    RedemptionRecord.email == email
+                    InviteRecord.source_type == "redeem_code",
+                    InviteRecord.source_code == code,
+                    InviteRecord.email == email
                 )
-            ).order_by(RedemptionRecord.redeemed_at.desc())
+            ).order_by(InviteRecord.invited_at.desc())
             result = await db_session.execute(stmt)
             records = result.scalars().all()
             

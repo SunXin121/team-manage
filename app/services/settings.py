@@ -216,5 +216,104 @@ class SettingsService:
         return success
 
 
+    async def get_mapay_config(self, session: AsyncSession) -> Dict[str, str]:
+        """
+        获取码支付配置
+
+        Returns:
+            码支付配置字典
+        """
+        mapay_id = await self.get_setting(session, "mapay_id", "")
+        mapay_key = await self.get_setting(session, "mapay_key", "")
+        mapay_url = await self.get_setting(session, "mapay_url", "https://pay.yueuo.cn")
+        mapay_domain = await self.get_setting(session, "mapay_domain", "")
+        mapay_price = await self.get_setting(session, "mapay_price", "19.9")
+        mapay_product_name = await self.get_setting(session, "mapay_product_name", "GPT Team 会员")
+
+        return {
+            "mapay_id": mapay_id,
+            "mapay_key": mapay_key,
+            "mapay_url": mapay_url,
+            "mapay_domain": mapay_domain,
+            "mapay_price": mapay_price,
+            "mapay_product_name": mapay_product_name
+        }
+
+    async def update_mapay_config(
+        self,
+        session: AsyncSession,
+        mapay_id: str,
+        mapay_key: str,
+        mapay_url: str,
+        mapay_domain: str,
+        mapay_price: str,
+        mapay_product_name: str
+    ) -> bool:
+        """
+        更新码支付配置
+
+        Args:
+            session: 数据库会话
+            mapay_id: 商户ID
+            mapay_key: 通信密钥
+            mapay_url: API地址
+            mapay_domain: 网站域名（用于生成回调URL）
+            mapay_price: 支付金额
+            mapay_product_name: 商品名称
+
+        Returns:
+            是否更新成功
+        """
+        settings = {
+            "mapay_id": mapay_id,
+            "mapay_key": mapay_key,
+            "mapay_url": mapay_url.rstrip("/"),  # 去除尾部斜杠
+            "mapay_domain": mapay_domain.rstrip("/"),  # 去除尾部斜杠
+            "mapay_price": mapay_price,
+            "mapay_product_name": mapay_product_name
+        }
+
+        return await self.update_settings(session, settings)
+
+    async def get_payment_methods_config(self, session: AsyncSession) -> Dict[str, bool]:
+        """
+        获取支付方式配置
+
+        Returns:
+            支付方式配置字典
+        """
+        alipay_enabled = await self.get_setting(session, "alipay_enabled", "true")
+        wxpay_enabled = await self.get_setting(session, "wxpay_enabled", "true")
+
+        return {
+            "alipay_enabled": alipay_enabled.lower() == "true",
+            "wxpay_enabled": wxpay_enabled.lower() == "true"
+        }
+
+    async def update_payment_methods_config(
+        self,
+        session: AsyncSession,
+        alipay_enabled: bool,
+        wxpay_enabled: bool
+    ) -> bool:
+        """
+        更新支付方式配置
+
+        Args:
+            session: 数据库会话
+            alipay_enabled: 是否启用支付宝
+            wxpay_enabled: 是否启用微信支付
+
+        Returns:
+            是否更新成功
+        """
+        settings = {
+            "alipay_enabled": str(alipay_enabled).lower(),
+            "wxpay_enabled": str(wxpay_enabled).lower()
+        }
+
+        return await self.update_settings(session, settings)
+
+
 # 创建全局实例
 settings_service = SettingsService()

@@ -26,6 +26,52 @@ class ChatGPTService:
         self.session: Optional[AsyncSession] = None
         self.proxy: Optional[str] = None
 
+    @staticmethod
+    def _is_transport_error(error_text: str) -> bool:
+        """判断是否为可重试的网络传输层错误"""
+        text = (error_text or "").lower()
+        markers = [
+            "curl: (35)",
+            "connection was aborted",
+            "failed to perform",
+            "timed out",
+            "timeout",
+            "connection reset",
+            "connection refused",
+            "ssl",
+            "tls",
+            "proxy",
+        ]
+        return any(marker in text for marker in markers)
+
+    @staticmethod
+    def _format_request_error(
+        error_text: str,
+        had_proxy: bool,
+        switched_to_direct: bool
+    ) -> str:
+        """构造可操作的网络错误提示"""
+        text = (error_text or "").lower()
+        reason = "网络连接异常"
+
+        if "curl: (35)" in text or "connection was aborted" in text:
+            reason = "TLS 握手/连接中断"
+        elif "timed out" in text or "timeout" in text:
+            reason = "请求超时"
+        elif "connection refused" in text:
+            reason = "目标拒绝连接"
+        elif "proxy" in text:
+            reason = "代理连接异常"
+
+        if had_proxy:
+            proxy_hint = "检测到已启用代理"
+            if switched_to_direct:
+                proxy_hint += "，且已自动切换直连重试后仍失败"
+            proxy_hint += "，建议先在系统设置中暂时关闭代理再重试"
+            return f"请求异常: {error_text}；诊断: {reason}；{proxy_hint}"
+
+        return f"请求异常: {error_text}；诊断: {reason}；当前为直连，请检查本机网络/DNS/防火墙后重试"
+
     async def _get_proxy_config(self, db_session: DBAsyncSession) -> Optional[str]:
         """
         获取代理配置
@@ -41,7 +87,11 @@ class ChatGPTService:
             return proxy_config["proxy"]
         return None
 
-    async def _create_session(self, db_session: DBAsyncSession) -> AsyncSession:
+    async def _create_session(
+        self,
+        db_session: DBAsyncSession,
+        proxy_override: Optional[str] = None
+    ) -> AsyncSession:
         """
         创建 HTTP 会话
 
@@ -51,8 +101,13 @@ class ChatGPTService:
         Returns:
             curl_cffi AsyncSession 实例
         """
-        # 获取代理配置
-        proxy = await self._get_proxy_config(db_session)
+        # 获取代理配置（允许覆盖）
+        if proxy_override is not None:
+            proxy = proxy_override
+        elif db_session:
+            proxy = await self._get_proxy_config(db_session)
+        else:
+            proxy = None
 
         # 创建会话 (使用 chrome 浏览器指纹)
         session = AsyncSession(
@@ -60,6 +115,8 @@ class ChatGPTService:
             proxies={"http": proxy, "https": proxy} if proxy else None,
             timeout=30
         )
+
+        self.proxy = proxy
 
         logger.info(f"创建 HTTP 会话,代理: {proxy if proxy else '未使用'}")
         return session
@@ -85,14 +142,24 @@ class ChatGPTService:
         Returns:
             响应数据字典,包含 success, status_code, data, error
         """
+        # 读取当前请求应使用的代理配置
+        configured_proxy = await self._get_proxy_config(db_session) if db_session else None
+        active_proxy = configured_proxy
+        switched_to_direct = False
+
         # 创建会话
+        if self.session and self.proxy != active_proxy:
+            await self.clear_session()
+
         if not self.session:
-            self.session = await self._create_session(db_session)
+            self.session = await self._create_session(db_session, proxy_override=active_proxy)
 
         # 重试循环
         for attempt in range(self.MAX_RETRIES):
             try:
-                logger.info(f"发送请求: {method} {url} (尝试 {attempt + 1}/{self.MAX_RETRIES})")
+                logger.info(
+                    f"发送请求: {method} {url} (尝试 {attempt + 1}/{self.MAX_RETRIES}, 代理: {'开启' if active_proxy else '关闭'})"
+                )
 
                 # 发送请求
                 if method == "GET":
@@ -173,6 +240,14 @@ class ChatGPTService:
 
                 # 如果不是最后一次尝试,等待后重试
                 if attempt < self.MAX_RETRIES - 1:
+                    if configured_proxy and not switched_to_direct:
+                        logger.warning("检测到代理链路超时，下一次重试切换为直连")
+                        switched_to_direct = True
+                        active_proxy = None
+
+                    await self.clear_session()
+                    self.session = await self._create_session(db_session, proxy_override=active_proxy)
+
                     delay = self.RETRY_DELAYS[attempt]
                     logger.info(f"等待 {delay}s 后重试")
                     await asyncio.sleep(delay)
@@ -183,14 +258,23 @@ class ChatGPTService:
                     "success": False,
                     "status_code": 0,
                     "data": None,
-                    "error": f"请求超时,已重试 {self.MAX_RETRIES} 次"
+                    "error": f"请求超时,已重试 {self.MAX_RETRIES} 次（代理: {'开启' if configured_proxy else '关闭'}）"
                 }
 
             except Exception as e:
-                logger.error(f"请求异常: {e}")
+                error_text = str(e)
+                logger.error(f"请求异常: {error_text}")
 
                 # 如果不是最后一次尝试,等待后重试
                 if attempt < self.MAX_RETRIES - 1:
+                    if configured_proxy and not switched_to_direct and self._is_transport_error(error_text):
+                        logger.warning("检测到代理链路网络异常，下一次重试切换为直连")
+                        switched_to_direct = True
+                        active_proxy = None
+
+                    await self.clear_session()
+                    self.session = await self._create_session(db_session, proxy_override=active_proxy)
+
                     delay = self.RETRY_DELAYS[attempt]
                     logger.info(f"等待 {delay}s 后重试")
                     await asyncio.sleep(delay)
@@ -201,7 +285,11 @@ class ChatGPTService:
                     "success": False,
                     "status_code": 0,
                     "data": None,
-                    "error": f"请求异常: {str(e)}"
+                    "error": self._format_request_error(
+                        error_text=error_text,
+                        had_proxy=bool(configured_proxy),
+                        switched_to_direct=switched_to_direct
+                    )
                 }
 
         # 不应该到达这里

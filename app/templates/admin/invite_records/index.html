@@ -1,0 +1,165 @@
+{% extends "base.html" %}
+
+{% block title %}邀请记录 - GPT Team 管理系统{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h2>邀请记录</h2>
+</div>
+
+<div class="stats-container">
+    <div class="stat-card">
+        <div class="stat-content">
+            <div class="stat-value">{{ stats.total }}</div>
+            <div class="stat-label">总记录数</div>
+        </div>
+    </div>
+    <div class="stat-card stat-info">
+        <div class="stat-content">
+            <div class="stat-value">{{ stats.today }}</div>
+            <div class="stat-label">今日邀请</div>
+        </div>
+    </div>
+    <div class="stat-card stat-success">
+        <div class="stat-content">
+            <div class="stat-value">{{ stats.this_week }}</div>
+            <div class="stat-label">本周邀请</div>
+        </div>
+    </div>
+    <div class="stat-card stat-warning">
+        <div class="stat-content">
+            <div class="stat-value">{{ stats.this_month }}</div>
+            <div class="stat-label">本月邀请</div>
+        </div>
+    </div>
+</div>
+
+<div class="content-section">
+    <div class="section-header">
+        <h3><i data-lucide="search"></i> 搜索筛选</h3>
+    </div>
+
+    <form method="get" action="/admin/invite-records" class="search-form-grid">
+        <div class="form-group">
+            <label for="email">用户邮箱</label>
+            <input type="text" id="email" name="email" value="{{ filters.email or '' }}" placeholder="输入邮箱搜索" class="form-control">
+        </div>
+        <div class="form-group">
+            <label for="code">兑换码</label>
+            <input type="text" id="code" name="code" value="{{ filters.code or '' }}" placeholder="输入兑换码搜索" class="form-control">
+        </div>
+        <div class="form-group">
+            <label for="order_no">订单号</label>
+            <input type="text" id="order_no" name="order_no" value="{{ filters.order_no or '' }}" placeholder="输入订单号搜索" class="form-control">
+        </div>
+        <div class="form-group">
+            <label for="source_type">来源类型</label>
+            <select id="source_type" name="source_type" class="form-control">
+                <option value="" {% if not filters.source_type %}selected{% endif %}>全部</option>
+                <option value="redeem_code" {% if filters.source_type == 'redeem_code' %}selected{% endif %}>兑换码</option>
+                <option value="payment" {% if filters.source_type == 'payment' %}selected{% endif %}>支付订单</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label for="team_id">Team ID</label>
+            <input type="number" id="team_id" name="team_id" value="{{ filters.team_id or '' }}" placeholder="输入 Team ID" class="form-control">
+        </div>
+        <div class="form-group">
+            <label for="start_date">开始日期</label>
+            <input type="date" id="start_date" name="start_date" value="{{ filters.start_date or '' }}" class="form-control">
+        </div>
+        <div class="form-group">
+            <label for="end_date">结束日期</label>
+            <input type="date" id="end_date" name="end_date" value="{{ filters.end_date or '' }}" class="form-control">
+        </div>
+        <div class="form-actions" style="display: flex; gap: 0.5rem;">
+            <button type="submit" class="btn btn-primary" style="flex: 1;">
+                <i data-lucide="search" style="width: 16px; height: 16px;"></i> 搜索
+            </button>
+            <a href="/admin/invite-records" class="btn btn-secondary">
+                <i data-lucide="rotate-ccw" style="width: 16px; height: 16px;"></i> 重置
+            </a>
+        </div>
+    </form>
+</div>
+
+<div class="content-section">
+    <div class="section-header">
+        <div style="display: flex; align-items: center; gap: 1rem;">
+            <h3>邀请记录列表</h3>
+            <span class="badge badge-info">{{ pagination.total }} 条记录</span>
+        </div>
+        <div class="record-pagination-info">
+            第 {{ pagination.current_page }}/{{ pagination.total_pages }} 页
+        </div>
+    </div>
+
+    {% if records %}
+    <div class="table-container">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>用户邮箱</th>
+                    <th>来源</th>
+                    <th>Team 名称</th>
+                    <th>Team ID</th>
+                    <th>Account ID</th>
+                    <th style="text-align: right;">邀请时间</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for record in records %}
+                <tr>
+                    <td><span class="text-muted">{{ record.id }}</span></td>
+                    <td><strong>{{ record.email }}</strong></td>
+                    <td>
+                        {% if record.source_type == 'payment' %}
+                            <span class="badge badge-info">支付</span>
+                            <code>{{ record.order_no or '-' }}</code>
+                        {% else %}
+                            <span class="badge badge-secondary">兑换码</span>
+                            <code>{{ record.source_code or '-' }}</code>
+                        {% endif %}
+                    </td>
+                    <td>{{ record.team_name or '-' }}</td>
+                    <td><span class="badge badge-secondary">{{ record.team_id }}</span></td>
+                    <td>
+                        {% if record.account_id %}
+                            <code class="account-id" title="{{ record.account_id }}">{{ record.account_id[:8] }}...</code>
+                        {% else %}
+                            -
+                        {% endif %}
+                    </td>
+                    <td style="text-align: right;">{{ record.invited_at }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    {% if pagination and pagination.total_pages > 1 %}
+    <div class="pagination">
+        {% if pagination.current_page > 1 %}
+        <a href="?page=1{% if filters.email %}&email={{ filters.email }}{% endif %}{% if filters.code %}&code={{ filters.code }}{% endif %}{% if filters.order_no %}&order_no={{ filters.order_no }}{% endif %}{% if filters.source_type %}&source_type={{ filters.source_type }}{% endif %}{% if filters.team_id %}&team_id={{ filters.team_id }}{% endif %}{% if filters.start_date %}&start_date={{ filters.start_date }}{% endif %}{% if filters.end_date %}&end_date={{ filters.end_date }}{% endif %}" class="btn btn-sm btn-secondary">首页</a>
+        <a href="?page={{ pagination.current_page - 1 }}{% if filters.email %}&email={{ filters.email }}{% endif %}{% if filters.code %}&code={{ filters.code }}{% endif %}{% if filters.order_no %}&order_no={{ filters.order_no }}{% endif %}{% if filters.source_type %}&source_type={{ filters.source_type }}{% endif %}{% if filters.team_id %}&team_id={{ filters.team_id }}{% endif %}{% if filters.start_date %}&start_date={{ filters.start_date }}{% endif %}{% if filters.end_date %}&end_date={{ filters.end_date }}{% endif %}" class="btn btn-sm btn-secondary"><i data-lucide="chevron-left" style="width: 14px; height: 14px;"></i></a>
+        {% endif %}
+
+        <span class="pagination-info">第 {{ pagination.current_page }} / {{ pagination.total_pages }} 页</span>
+
+        {% if pagination.current_page < pagination.total_pages %}
+        <a href="?page={{ pagination.current_page + 1 }}{% if filters.email %}&email={{ filters.email }}{% endif %}{% if filters.code %}&code={{ filters.code }}{% endif %}{% if filters.order_no %}&order_no={{ filters.order_no }}{% endif %}{% if filters.source_type %}&source_type={{ filters.source_type }}{% endif %}{% if filters.team_id %}&team_id={{ filters.team_id }}{% endif %}{% if filters.start_date %}&start_date={{ filters.start_date }}{% endif %}{% if filters.end_date %}&end_date={{ filters.end_date }}{% endif %}" class="btn btn-sm btn-secondary"><i data-lucide="chevron-right" style="width: 14px; height: 14px;"></i></a>
+        <a href="?page={{ pagination.total_pages }}{% if filters.email %}&email={{ filters.email }}{% endif %}{% if filters.code %}&code={{ filters.code }}{% endif %}{% if filters.order_no %}&order_no={{ filters.order_no }}{% endif %}{% if filters.source_type %}&source_type={{ filters.source_type }}{% endif %}{% if filters.team_id %}&team_id={{ filters.team_id }}{% endif %}{% if filters.start_date %}&start_date={{ filters.start_date }}{% endif %}{% if filters.end_date %}&end_date={{ filters.end_date }}{% endif %}" class="btn btn-sm btn-secondary">末页</a>
+        {% endif %}
+    </div>
+    {% endif %}
+
+    {% else %}
+    <div class="empty-state">
+        <i data-lucide="clipboard-list" style="width: 48px; height: 48px; margin-bottom: 1rem; opacity: 0.2;"></i>
+        <p>暂无邀请记录</p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+

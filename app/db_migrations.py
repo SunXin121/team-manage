@@ -96,6 +96,90 @@ def run_auto_migration():
             logger.info("添加 teams.error_count 字段")
             cursor.execute("ALTER TABLE teams ADD COLUMN error_count INTEGER DEFAULT 0")
             migrations_applied.append("teams.error_count")
+
+        # 检查并创建邀请记录表（统一支付订单与兑换使用记录）
+        cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='invite_records'")
+        invite_table_exists = cursor.fetchone() is not None
+        if not invite_table_exists:
+            logger.info("创建 invite_records 表")
+            cursor.execute("""
+                CREATE TABLE invite_records (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    email VARCHAR(255) NOT NULL,
+                    source_type VARCHAR(20) NOT NULL,
+                    source_code VARCHAR(32),
+                    order_no VARCHAR(64),
+                    pay_type VARCHAR(20),
+                    amount VARCHAR(20),
+                    trade_no VARCHAR(64),
+                    team_id INTEGER NOT NULL,
+                    account_id VARCHAR(100),
+                    is_warranty_redemption BOOLEAN DEFAULT 0,
+                    invited_at DATETIME,
+                    FOREIGN KEY(team_id) REFERENCES teams(id)
+                )
+            """)
+            migrations_applied.append("create_table.invite_records")
+
+        # 补齐 invited_at 字段（兼容早期表结构）
+        if not column_exists(cursor, "invite_records", "invited_at"):
+            logger.info("添加 invite_records.invited_at 字段")
+            cursor.execute("ALTER TABLE invite_records ADD COLUMN invited_at DATETIME")
+            migrations_applied.append("invite_records.invited_at")
+
+        # 创建 invite_records 索引
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_invite_email ON invite_records(email)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_invite_source ON invite_records(source_type)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_invite_order_no ON invite_records(order_no)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_invite_source_code ON invite_records(source_code)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_invite_team ON invite_records(team_id)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_invite_time ON invite_records(invited_at)")
+
+        # 历史数据回填：兑换记录 -> 邀请记录
+        cursor.execute("""
+            INSERT INTO invite_records (
+                email, source_type, source_code, team_id, account_id, is_warranty_redemption, invited_at
+            )
+            SELECT
+                rr.email,
+                'redeem_code',
+                rr.code,
+                rr.team_id,
+                rr.account_id,
+                COALESCE(rr.is_warranty_redemption, 0),
+                rr.redeemed_at
+            FROM redemption_records rr
+            LEFT JOIN invite_records ir
+                ON ir.source_type = 'redeem_code'
+                AND ir.source_code = rr.code
+                AND ir.email = rr.email
+                AND ir.team_id = rr.team_id
+                AND ir.invited_at = rr.redeemed_at
+            WHERE ir.id IS NULL
+        """)
+
+        # 历史数据回填：已兑换支付订单 -> 邀请记录
+        cursor.execute("""
+            INSERT INTO invite_records (
+                email, source_type, order_no, pay_type, amount, trade_no, team_id, invited_at
+            )
+            SELECT
+                po.email,
+                'payment',
+                po.order_no,
+                po.pay_type,
+                po.amount,
+                po.trade_no,
+                po.team_id,
+                COALESCE(po.redeemed_at, po.paid_at, po.created_at)
+            FROM payment_orders po
+            LEFT JOIN invite_records ir
+                ON ir.source_type = 'payment'
+                AND ir.order_no = po.order_no
+            WHERE po.status = 'redeemed'
+                AND po.team_id IS NOT NULL
+                AND ir.id IS NULL
+        """)
         
         # 提交更改
         conn.commit()

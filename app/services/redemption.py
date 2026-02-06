@@ -12,6 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.models import RedemptionCode, RedemptionRecord, Team
+from app.services.invite_record import invite_record_service
 from app.utils.time_utils import get_now
 
 logger = logging.getLogger(__name__)
@@ -374,6 +375,24 @@ class RedemptionService:
             )
 
             db_session.add(redemption_record)
+
+            invite_record_result = await invite_record_service.create_invite_record(
+                db_session=db_session,
+                email=email,
+                source_type="redeem_code",
+                source_code=code,
+                team_id=team_id,
+                account_id=account_id,
+                is_warranty_redemption=False,
+                invited_at=get_now()
+            )
+            if not invite_record_result["success"]:
+                return {
+                    "success": False,
+                    "message": None,
+                    "error": invite_record_result.get("error", "写入邀请记录失败")
+                }
+
             await db_session.commit()
 
             logger.info(f"使用兑换码成功: {code} -> {email}")

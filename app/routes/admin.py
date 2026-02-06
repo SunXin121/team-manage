@@ -14,6 +14,7 @@ from app.database import get_db
 from app.dependencies.auth import require_admin
 from app.services.team import TeamService
 from app.services.redemption import RedemptionService
+from app.services.invite_record import invite_record_service
 from app.utils.time_utils import get_now
 
 logger = logging.getLogger(__name__)
@@ -885,11 +886,13 @@ async def bulk_update_codes(
         )
 
 
-@router.get("/records", response_class=HTMLResponse)
-async def records_page(
+@router.get("/invite-records", response_class=HTMLResponse)
+async def invite_records_page(
     request: Request,
     email: Optional[str] = None,
     code: Optional[str] = None,
+    order_no: Optional[str] = None,
+    source_type: Optional[str] = None,
     team_id: Optional[str] = None,
     start_date: Optional[str] = None,
     end_date: Optional[str] = None,
@@ -898,7 +901,7 @@ async def records_page(
     current_user: dict = Depends(require_admin)
 ):
     """
-    使用记录页面
+    邀请记录页面
 
     Args:
         request: FastAPI Request 对象
@@ -912,12 +915,11 @@ async def records_page(
         current_user: 当前用户（需要登录）
 
     Returns:
-        使用记录页面 HTML
+        邀请记录页面 HTML
     """
     try:
         from app.main import templates
-        from datetime import datetime, timedelta
-        import math
+        from datetime import datetime
 
         # 解析参数
         try:
@@ -930,127 +932,119 @@ async def records_page(
         except (ValueError, TypeError):
             page_int = 1
             
-        logger.info(f"管理员访问使用记录页面 (page={page_int})")
+        logger.info(f"管理员访问邀请记录页面 (page={page_int})")
 
-        # 获取记录 (支持邮箱、兑换码、Team ID 筛选)
-        records_result = await redemption_service.get_all_records(
-            db, 
-            email=email, 
-            code=code, 
-            team_id=actual_team_id
+        # 获取记录（统一查询 invite_records）
+        records_result = await invite_record_service.get_invite_records(
+            db_session=db,
+            email=email,
+            source_code=code,
+            order_no=order_no,
+            team_id=actual_team_id,
+            source_type=source_type,
+            start_date=start_date,
+            end_date=end_date,
+            page=page_int,
+            per_page=20
         )
-        all_records = records_result.get("records", [])
 
-        # 仅由于日期范围筛选目前还在内存中处理，如果未来记录数极大可以移至数据库
-        filtered_records = []
-        for record in all_records:
-            # 日期范围筛选
-            if start_date or end_date:
-                try:
-                    record_date = datetime.fromisoformat(record["redeemed_at"]).date()
+        if not records_result.get("success"):
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=records_result.get("error", "获取邀请记录失败")
+            )
 
-                    if start_date:
-                        start = datetime.strptime(start_date, "%Y-%m-%d").date()
-                        if record_date < start:
-                            continue
+        stats_result = await invite_record_service.get_invite_stats(
+            db_session=db,
+            email=email,
+            source_code=code,
+            order_no=order_no,
+            team_id=actual_team_id,
+            source_type=source_type,
+            start_date=start_date,
+            end_date=end_date
+        )
 
-                    if end_date:
-                        end = datetime.strptime(end_date, "%Y-%m-%d").date()
-                        if record_date > end:
-                            continue
-                except:
-                    pass
-
-            filtered_records.append(record)
-
-        # 获取Team信息并关联到记录
-        teams_result = await team_service.get_all_teams(db)
-        teams = teams_result.get("teams", [])
-        team_map = {team["id"]: team for team in teams}
-
-        # 为记录添加Team名称
-        for record in filtered_records:
-            team = team_map.get(record["team_id"])
-            record["team_name"] = team["team_name"] if team else None
-
-        # 计算统计数据
-        now = get_now()
-        today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
-        week_start = today_start - timedelta(days=today_start.weekday())
-        month_start = today_start.replace(day=1)
-
-        stats = {
-            "total": len(filtered_records),
+        stats = stats_result.get("stats", {
+            "total": 0,
             "today": 0,
             "this_week": 0,
             "this_month": 0
-        }
+        })
 
-        for record in filtered_records:
-            try:
-                record_time = datetime.fromisoformat(record["redeemed_at"])
-                if record_time >= today_start:
-                    stats["today"] += 1
-                if record_time >= week_start:
-                    stats["this_week"] += 1
-                if record_time >= month_start:
-                    stats["this_month"] += 1
-            except:
-                pass
+        paginated_records = records_result.get("records", [])
 
-        # 分页
-        per_page = 20
-        total_records = len(filtered_records)
-        total_pages = math.ceil(total_records / per_page) if total_records > 0 else 1
-
-        # 确保页码有效
-        if page_int < 1:
-            page_int = 1
-        if page_int > total_pages:
-            page_int = total_pages
-
-        start_idx = (page_int - 1) * per_page
-        end_idx = start_idx + per_page
-        paginated_records = filtered_records[start_idx:end_idx]
-
-        # 格式化时间
         for record in paginated_records:
             try:
-                dt = datetime.fromisoformat(record["redeemed_at"])
-                record["redeemed_at"] = dt.strftime("%Y-%m-%d %H:%M:%S")
-            except:
+                dt = datetime.fromisoformat(record["invited_at"]) if record.get("invited_at") else None
+                if dt:
+                    record["invited_at"] = dt.strftime("%Y-%m-%d %H:%M:%S")
+            except Exception:
                 pass
 
+        total_records = records_result.get("total", 0)
+        total_pages = records_result.get("total_pages", 1)
+
         return templates.TemplateResponse(
-            "admin/records/index.html",
+            "admin/invite_records/index.html",
             {
                 "request": request,
                 "user": current_user,
-                "active_page": "records",
+                "active_page": "invite_records",
                 "records": paginated_records,
                 "stats": stats,
                 "filters": {
                     "email": email,
                     "code": code,
+                    "order_no": order_no,
+                    "source_type": source_type,
                     "team_id": team_id,
                     "start_date": start_date,
                     "end_date": end_date
                 },
                 "pagination": {
-                    "current_page": page_int,
+                    "current_page": records_result.get("current_page", page_int),
                     "total_pages": total_pages,
                     "total": total_records,
-                    "per_page": per_page
+                    "per_page": records_result.get("per_page", 20)
                 }
             }
         )
 
     except Exception as e:
-        logger.error(f"获取使用记录失败: {e}")
+        logger.error(f"获取邀请记录失败: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"获取使用记录失败: {str(e)}"
+            detail=f"获取邀请记录失败: {str(e)}"
         )
+
+
+@router.get("/records", response_class=HTMLResponse)
+async def records_page_redirect(
+    request: Request,
+    email: Optional[str] = None,
+    code: Optional[str] = None,
+    team_id: Optional[str] = None,
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
+    page: Optional[str] = "1",
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(require_admin)
+):
+    """兼容旧路径，转为邀请记录页面"""
+    return await invite_records_page(
+        request=request,
+        email=email,
+        code=code,
+        order_no=None,
+        source_type=None,
+        team_id=team_id,
+        start_date=start_date,
+        end_date=end_date,
+        page=page,
+        db=db,
+        current_user=current_user
+    )
 
 
 @router.get("/settings", response_class=HTMLResponse)
@@ -1079,6 +1073,8 @@ async def settings_page(
         # 获取当前配置
         proxy_config = await settings_service.get_proxy_config(db)
         log_level = await settings_service.get_log_level(db)
+        mapay_config = await settings_service.get_mapay_config(db)
+        payment_methods = await settings_service.get_payment_methods_config(db)
 
         return templates.TemplateResponse(
             "admin/settings/index.html",
@@ -1088,7 +1084,15 @@ async def settings_page(
                 "active_page": "settings",
                 "proxy_enabled": proxy_config["enabled"],
                 "proxy": proxy_config["proxy"],
-                "log_level": log_level
+                "log_level": log_level,
+                "mapay_id": mapay_config["mapay_id"],
+                "mapay_key": mapay_config["mapay_key"],
+                "mapay_url": mapay_config["mapay_url"],
+                "mapay_domain": mapay_config["mapay_domain"],
+                "mapay_price": mapay_config["mapay_price"],
+                "mapay_product_name": mapay_config["mapay_product_name"],
+                "alipay_enabled": payment_methods["alipay_enabled"],
+                "wxpay_enabled": payment_methods["wxpay_enabled"]
             }
         )
 
@@ -1207,6 +1211,176 @@ async def update_log_level(
 
     except Exception as e:
         logger.error(f"更新日志级别失败: {e}")
+        return JSONResponse(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            content={"success": False, "error": f"更新失败: {str(e)}"}
+        )
+
+
+# ========== 支付订单管理 ==========
+
+@router.get("/orders", response_class=HTMLResponse)
+async def orders_page_redirect(
+    request: Request,
+    email: Optional[str] = None,
+    code: Optional[str] = None,
+    order_no: Optional[str] = None,
+    source_type: Optional[str] = "payment",
+    team_id: Optional[str] = None,
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
+    page: Optional[str] = "1",
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(require_admin)
+):
+    """兼容旧订单管理入口，统一转到邀请记录（默认支付来源）"""
+    return await invite_records_page(
+        request=request,
+        email=email,
+        code=code,
+        order_no=order_no,
+        source_type=source_type,
+        team_id=team_id,
+        start_date=start_date,
+        end_date=end_date,
+        page=page,
+        db=db,
+        current_user=current_user
+    )
+
+
+@router.post("/orders/{order_no}/manual-redeem")
+async def manual_redeem_order(
+    order_no: str,
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(require_admin)
+):
+    """兼容旧手动兑换接口，内部仍可执行并落邀请记录"""
+    try:
+        from app.services.payment import payment_service
+
+        logger.info(f"管理员手动兑换订单: {order_no}")
+
+        result = await payment_service.manual_redeem(order_no, db)
+
+        if not result["success"]:
+            return JSONResponse(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                content=result
+            )
+
+        return JSONResponse(content=result)
+
+    except Exception as e:
+        logger.error(f"手动兑换订单失败: {e}")
+        return JSONResponse(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            content={"success": False, "error": f"操作失败: {str(e)}"}
+        )
+
+
+class MapayConfigRequest(BaseModel):
+    """码支付配置请求"""
+    mapay_id: str = Field("", description="商户ID")
+    mapay_key: str = Field("", description="通信密钥")
+    mapay_url: str = Field("https://pay.yueuo.cn", description="API地址")
+    mapay_domain: str = Field("", description="网站域名")
+    mapay_price: str = Field("19.9", description="支付金额")
+    mapay_product_name: str = Field("GPT Team 会员", description="商品名称")
+
+
+@router.post("/settings/mapay")
+async def update_mapay_config(
+    mapay_data: MapayConfigRequest,
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(require_admin)
+):
+    """
+    更新码支付配置
+
+    Args:
+        mapay_data: 码支付配置数据
+        db: 数据库会话
+        current_user: 当前用户（需要登录）
+
+    Returns:
+        更新结果
+    """
+    try:
+        from app.services.settings import settings_service
+
+        logger.info(f"管理员更新码支付配置")
+
+        success = await settings_service.update_mapay_config(
+            db,
+            mapay_data.mapay_id,
+            mapay_data.mapay_key,
+            mapay_data.mapay_url,
+            mapay_data.mapay_domain,
+            mapay_data.mapay_price,
+            mapay_data.mapay_product_name
+        )
+
+        if success:
+            return JSONResponse(content={"success": True, "message": "码支付配置已保存"})
+        else:
+            return JSONResponse(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                content={"success": False, "error": "保存失败"}
+            )
+
+    except Exception as e:
+        logger.error(f"更新码支付配置失败: {e}")
+        return JSONResponse(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            content={"success": False, "error": f"更新失败: {str(e)}"}
+        )
+
+
+class PaymentMethodsRequest(BaseModel):
+    """支付方式配置请求"""
+    alipay_enabled: bool = Field(True, description="是否启用支付宝")
+    wxpay_enabled: bool = Field(True, description="是否启用微信支付")
+
+
+@router.post("/settings/payment-methods")
+async def update_payment_methods_config(
+    payment_data: PaymentMethodsRequest,
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(require_admin)
+):
+    """
+    更新支付方式配置
+
+    Args:
+        payment_data: 支付方式配置数据
+        db: 数据库会话
+        current_user: 当前用户（需要登录）
+
+    Returns:
+        更新结果
+    """
+    try:
+        from app.services.settings import settings_service
+
+        logger.info(f"管理员更新支付方式配置: alipay={payment_data.alipay_enabled}, wxpay={payment_data.wxpay_enabled}")
+
+        success = await settings_service.update_payment_methods_config(
+            db,
+            payment_data.alipay_enabled,
+            payment_data.wxpay_enabled
+        )
+
+        if success:
+            return JSONResponse(content={"success": True, "message": "支付方式配置已保存"})
+        else:
+            return JSONResponse(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                content={"success": False, "error": "保存失败"}
+            )
+
+    except Exception as e:
+        logger.error(f"更新支付方式配置失败: {e}")
         return JSONResponse(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             content={"success": False, "error": f"更新失败: {str(e)}"}

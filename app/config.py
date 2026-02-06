@@ -41,6 +41,15 @@ class Settings(BaseSettings):
     # 时区配置
     timezone: str = "Asia/Shanghai"
 
+    # 码支付配置
+    mapay_id: str = ""  # 码支付商户ID
+    mapay_key: str = ""  # 码支付通信密钥
+    mapay_url: str = "https://api.mapay.top"  # 码支付API地址
+    mapay_notify_url: str = ""  # 支付回调通知URL (如: https://yourdomain.com/api/payment/notify)
+    mapay_return_url: str = ""  # 支付成功跳转URL (如: https://yourdomain.com/payment/result)
+    mapay_price: float = 19.9  # 支付金额 (元)
+    mapay_product_name: str = "GPT Team 会员"  # 商品名称
+
     model_config = SettingsConfigDict(
         env_file=BASE_DIR / ".env",
         env_file_encoding="utf-8",

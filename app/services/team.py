@@ -9,7 +9,7 @@ from sqlalchemy import select, update, delete, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.models import Team, TeamAccount
+from app.models import Team, TeamAccount, RedemptionRecord, InviteRecord, PaymentOrder
 from app.services.chatgpt import ChatGPTService
 from app.services.encryption import encryption_service
 from app.utils.token_parser import TokenParser
@@ -433,80 +433,6 @@ class TeamService:
                 "message": None,
                 "error": f"导入失败: {str(e)}"
             }
-
-
-    async def update_team(
-        self,
-        team_id: int,
-        db_session: AsyncSession,
-        access_token: Optional[str] = None,
-        refresh_token: Optional[str] = None,
-        session_token: Optional[str] = None,
-        client_id: Optional[str] = None,
-        email: Optional[str] = None,
-        account_id: Optional[str] = None,
-        max_members: Optional[int] = None,
-        team_name: Optional[str] = None,
-        status: Optional[str] = None
-    ) -> Dict[str, Any]:
-        """
-        更新 Team 信息
-
-        Args:
-            team_id: Team ID
-            db_session: 数据库会话
-            access_token: 新的 AT Token (可选)
-            email: 新的邮箱 (可选)
-            account_id: 新的 Account ID (可选)
-            max_members: 最大成员数 (可选)
-            team_name: Team 名称 (可选)
-            status: 状态 (可选)
-
-        Returns:
-            结果字典
-        """
-        try:
-            stmt = select(Team).where(Team.id == team_id)
-            result = await db_session.execute(stmt)
-            team = result.scalar_one_or_none()
-
-            if not team:
-                return {"success": False, "error": f"Team ID {team_id} 不存在"}
-
-            if access_token:
-                team.access_token_encrypted = encryption_service.encrypt_token(access_token)
-            if refresh_token:
-                team.refresh_token_encrypted = encryption_service.encrypt_token(refresh_token)
-            if session_token:
-                team.session_token_encrypted = encryption_service.encrypt_token(session_token)
-            if client_id:
-                team.client_id = client_id
-            if email:
-                team.email = email
-            if account_id:
-                team.account_id = account_id
-            if max_members is not None:
-                team.max_members = max_members
-            if team_name is not None:
-                team.team_name = team_name
-            if status:
-                team.status = status
-
-            # 自动维护 active/full 状态 (仅当当前处于这两者之一时)
-            if team.status in ["active", "full"]:
-                if team.current_members >= team.max_members:
-                    team.status = "full"
-                else:
-                    team.status = "active"
-
-            await db_session.commit()
-            logger.info(f"Team {team_id} 信息更新成功")
-            return {"success": True, "message": "Team 信息更新成功"}
-
-        except Exception as e:
-            await db_session.rollback()
-            logger.error(f"更新 Team 失败: {e}")
-            return {"success": False, "error": f"更新失败: {str(e)}"}
 
     async def get_team_info(self, team_id: int, db_session: AsyncSession) -> Dict[str, Any]:
         """获取 Team 详细信息 (含解密 Token)"""
@@ -1633,6 +1559,7 @@ class TeamService:
         session_token: Optional[str] = None,
         client_id: Optional[str] = None,
         max_members: Optional[int] = None,
+        team_name: Optional[str] = None,
         status: Optional[str] = None
     ) -> Dict[str, Any]:
         """
@@ -1643,6 +1570,7 @@ class TeamService:
             db_session: 数据库会话
             email: 新邮箱 (可选)
             account_id: 新 account_id (可选,用于切换多 Team)
+            team_name: Team 名称 (可选)
 
         Returns:
             结果字典,包含 success, message, error
@@ -1688,6 +1616,36 @@ class TeamService:
                         "error": f"加密 Token 失败: {str(e)}"
                     }
 
+            # 4.1 更新 Refresh Token
+            if refresh_token:
+                try:
+                    from app.services.encryption import encryption_service
+                    team.refresh_token_encrypted = encryption_service.encrypt_token(refresh_token)
+                except Exception as e:
+                    logger.error(f"重新加密 Team {team_id} Refresh Token 失败: {e}")
+                    return {
+                        "success": False,
+                        "message": None,
+                        "error": f"加密 Refresh Token 失败: {str(e)}"
+                    }
+
+            # 4.2 更新 Session Token
+            if session_token:
+                try:
+                    from app.services.encryption import encryption_service
+                    team.session_token_encrypted = encryption_service.encrypt_token(session_token)
+                except Exception as e:
+                    logger.error(f"重新加密 Team {team_id} Session Token 失败: {e}")
+                    return {
+                        "success": False,
+                        "message": None,
+                        "error": f"加密 Session Token 失败: {str(e)}"
+                    }
+
+            # 4.3 更新 Client ID
+            if client_id:
+                team.client_id = client_id
+
             # 5. 更新最大成员数
             if max_members is not None:
                 team.max_members = max_members
@@ -1697,6 +1655,10 @@ class TeamService:
                         team.status = "full"
                 elif team.status == "full":
                     team.status = "active"
+
+            # 5.5 更新 Team 名称
+            if team_name is not None:
+                team.team_name = team_name
 
             # 6. 更新状态 (手动覆盖)
             if status:
@@ -1753,7 +1715,21 @@ class TeamService:
                     "error": f"Team ID {team_id} 不存在"
                 }
 
-            # 2. 删除 Team (级联删除 team_accounts 和 redemption_records)
+            # 2. 显式清理关联记录，避免 ORM 将外键置空触发 NOT NULL 约束
+            await db_session.execute(
+                delete(InviteRecord).where(InviteRecord.team_id == team_id)
+            )
+            await db_session.execute(
+                delete(RedemptionRecord).where(RedemptionRecord.team_id == team_id)
+            )
+            # 保留支付订单历史，解除其 team 绑定
+            await db_session.execute(
+                update(PaymentOrder)
+                .where(PaymentOrder.team_id == team_id)
+                .values(team_id=None)
+            )
+
+            # 3. 删除 Team (级联删除 team_accounts)
             await db_session.delete(team)
             await db_session.commit()
 

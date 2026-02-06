@@ -20,6 +20,7 @@ class WarrantyCheckRequest(BaseModel):
     """质保查询请求"""
     email: Optional[EmailStr] = None
     code: Optional[str] = None
+    query: Optional[str] = None
 
 
 class WarrantyCheckRecord(BaseModel):
@@ -62,8 +63,19 @@ async def check_warranty(
     用户可以通过邮箱或兑换码查询质保状态
     """
     try:
+        # 兼容旧前端：如果传 query，则自动识别邮箱/兑换码
+        email = request.email
+        code = request.code
+        if request.query and not email and not code:
+            query_text = request.query.strip()
+            if query_text:
+                if "@" in query_text:
+                    email = query_text
+                else:
+                    code = query_text
+
         # 验证至少提供一个参数
-        if not request.email and not request.code:
+        if not email and not code:
             raise HTTPException(
                 status_code=400,
                 detail="必须提供邮箱或兑换码"
@@ -72,8 +84,8 @@ async def check_warranty(
         # 调用质保服务
         result = await warranty_service.check_warranty_status(
             db_session,
-            email=request.email,
-            code=request.code
+            email=email,
+            code=code
         )
         
         if not result["success"]:
@@ -102,3 +114,12 @@ async def check_warranty(
             status_code=500,
             detail=f"查询质保状态失败: {str(e)}"
         )
+
+
+@router.post("/query", response_model=WarrantyCheckResponse)
+async def query_warranty(
+    request: WarrantyCheckRequest,
+    db_session: AsyncSession = Depends(get_db)
+):
+    """兼容旧前端 /warranty/query，转发到 /warranty/check"""
+    return await check_warranty(request=request, db_session=db_session)

@@ -62,3 +62,36 @@ async def refresh_team(
                 "error": f"刷新 Team 失败: {str(e)}"
             }
         )
+
+
+@router.get("/stock/check")
+async def check_stock(
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    检查库存（可用车位数）
+
+    Args:
+        db: 数据库会话
+
+    Returns:
+        库存信息
+    """
+    try:
+        available_spots = await team_service.get_total_available_spots(db)
+        
+        return JSONResponse(content={
+            "success": True,
+            "available_spots": available_spots if available_spots is not None else 0
+        })
+
+    except Exception as e:
+        logger.error(f"检查库存失败: {e}")
+        return JSONResponse(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            content={
+                "success": False,
+                "error": f"检查库存失败: {str(e)}",
+                "available_spots": 0
+            }
+        )

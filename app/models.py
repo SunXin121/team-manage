@@ -34,7 +34,8 @@ class Team(Base):
 
     # 关系
     team_accounts = relationship("TeamAccount", back_populates="team", cascade="all, delete-orphan")
-    redemption_records = relationship("RedemptionRecord", back_populates="team")
+    redemption_records = relationship("RedemptionRecord", back_populates="team", cascade="all, delete-orphan")
+    invite_records = relationship("InviteRecord", back_populates="team", cascade="all, delete-orphan")
 
     # 索引
     __table_args__ = (
@@ -94,7 +95,7 @@ class RedemptionRecord(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     email = Column(String(255), nullable=False, comment="用户邮箱")
     code = Column(String(32), ForeignKey("redemption_codes.code"), nullable=False, comment="兑换码")
-    team_id = Column(Integer, ForeignKey("teams.id"), nullable=False, comment="Team ID")
+    team_id = Column(Integer, ForeignKey("teams.id", ondelete="CASCADE"), nullable=False, comment="Team ID")
     account_id = Column(String(100), nullable=False, comment="Account ID")
     redeemed_at = Column(DateTime, default=get_now, comment="兑换时间")
     is_warranty_redemption = Column(Boolean, default=False, comment="是否为质保兑换")
@@ -106,6 +107,37 @@ class RedemptionRecord(Base):
     # 索引
     __table_args__ = (
         Index("idx_email", "email"),
+    )
+
+
+class InviteRecord(Base):
+    """邀请记录表（统一支付邀请与兑换邀请）"""
+    __tablename__ = "invite_records"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    email = Column(String(255), nullable=False, comment="被邀请用户邮箱")
+    source_type = Column(String(20), nullable=False, comment="来源: redeem_code/payment")
+    source_code = Column(String(32), comment="兑换码（仅兑换来源）")
+    order_no = Column(String(64), comment="订单号（仅支付来源）")
+    pay_type = Column(String(20), comment="支付方式")
+    amount = Column(String(20), comment="支付金额")
+    trade_no = Column(String(64), comment="支付交易号")
+    team_id = Column(Integer, ForeignKey("teams.id", ondelete="CASCADE"), nullable=False, comment="邀请目标 Team ID")
+    account_id = Column(String(100), comment="邀请使用的 Account ID")
+    is_warranty_redemption = Column(Boolean, default=False, comment="是否为质保重兑")
+    invited_at = Column(DateTime, default=get_now, comment="邀请时间")
+
+    # 关系
+    team = relationship("Team", back_populates="invite_records")
+
+    # 索引
+    __table_args__ = (
+        Index("idx_invite_email", "email"),
+        Index("idx_invite_source", "source_type"),
+        Index("idx_invite_order_no", "order_no"),
+        Index("idx_invite_source_code", "source_code"),
+        Index("idx_invite_team", "team_id"),
+        Index("idx_invite_time", "invited_at"),
     )
 
 
@@ -123,4 +155,34 @@ class Setting(Base):
     # 索引
     __table_args__ = (
         Index("idx_key", "key"),
+    )
+
+
+class PaymentOrder(Base):
+    """支付订单表"""
+    __tablename__ = "payment_orders"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    order_no = Column(String(64), unique=True, nullable=False, comment="商户订单号")
+    trade_no = Column(String(64), comment="码支付交易号")
+    email = Column(String(255), nullable=False, comment="用户邮箱")
+    amount = Column(String(20), nullable=False, comment="支付金额")
+    pay_type = Column(String(20), default="alipay", comment="支付方式: alipay/wxpay")
+    status = Column(String(20), default="pending", comment="订单状态: pending/paid/expired/cancelled/redeemed")
+    product_name = Column(String(255), comment="商品名称")
+    pay_url = Column(Text, comment="支付跳转URL")
+    qr_code = Column(Text, comment="支付二维码URL")
+    paid_at = Column(DateTime, comment="支付时间")
+    redeemed_at = Column(DateTime, comment="兑换时间")
+    team_id = Column(Integer, ForeignKey("teams.id"), comment="加入的 Team ID")
+    created_at = Column(DateTime, default=get_now, comment="创建时间")
+    updated_at = Column(DateTime, default=get_now, onupdate=get_now, comment="更新时间")
+    expires_at = Column(DateTime, comment="订单过期时间")
+
+    # 索引
+    __table_args__ = (
+        Index("idx_order_no", "order_no"),
+        Index("idx_trade_no", "trade_no"),
+        Index("idx_payment_email", "email"),
+        Index("idx_payment_status", "status"),
     )

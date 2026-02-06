@@ -86,6 +86,90 @@
         <button type="submit" class="btn btn-primary">保存日志级别</button>
     </form>
 </div>
+
+<!-- 支付设置 -->
+<div class="content-section">
+    <div class="section-header">
+        <h3>支付设置</h3>
+    </div>
+
+    <form id="paymentForm" class="settings-form">
+        <!-- 支付方式开关 -->
+        <div class="form-group">
+            <label style="font-weight: 600; margin-bottom: 0.75rem; display: block;">支付方式</label>
+            <div style="display: flex; gap: 2rem; flex-wrap: wrap;">
+                <label class="checkbox-label">
+                    <input type="checkbox" id="alipayEnabled" name="alipay_enabled" {% if alipay_enabled %}checked{% endif %}>
+                    <span>支付宝</span>
+                </label>
+                <label class="checkbox-label">
+                    <input type="checkbox" id="wxpayEnabled" name="wxpay_enabled" {% if wxpay_enabled %}checked{% endif %}>
+                    <span>微信支付</span>
+                </label>
+            </div>
+            <p class="form-help">选择启用的支付方式，用户将在支付页面看到对应选项</p>
+        </div>
+
+        <hr style="border: none; border-top: 1px solid var(--border-base); margin: 1.5rem 0;">
+
+        <!-- 码支付配置 -->
+        <div class="form-group">
+            <label style="font-weight: 600; margin-bottom: 0.5rem; display: block;">码支付接口配置</label>
+            <p class="form-help" style="margin-bottom: 1rem;">请在码支付后台获取商户ID和通信密钥</p>
+        </div>
+
+        <div class="form-row" style="display: flex; gap: 20px;">
+            <div class="form-group" style="flex: 1;">
+                <label for="mapayId">商户ID</label>
+                <input type="text" id="mapayId" name="mapay_id" value="{{ mapay_id or '' }}"
+                    placeholder="请输入码支付商户ID" class="form-control">
+            </div>
+
+            <div class="form-group" style="flex: 1;">
+                <label for="mapayKey">通信密钥</label>
+                <input type="password" id="mapayKey" name="mapay_key" value="{{ mapay_key or '' }}"
+                    placeholder="请输入码支付通信密钥" class="form-control">
+            </div>
+        </div>
+
+        <div class="form-row" style="display: flex; gap: 20px;">
+            <div class="form-group" style="flex: 1;">
+                <label for="mapayUrl">API地址</label>
+                <input type="text" id="mapayUrl" name="mapay_url" value="{{ mapay_url or 'https://pay.yueuo.cn' }}"
+                    placeholder="https://pay.yueuo.cn" class="form-control">
+                <p class="form-help">码支付API接口地址</p>
+            </div>
+
+            <div class="form-group" style="flex: 1;">
+                <label for="mapayDomain">网站域名</label>
+                <input type="text" id="mapayDomain" name="mapay_domain" value="{{ mapay_domain or '' }}"
+                    placeholder="https://yourdomain.com" class="form-control">
+                <p class="form-help">用于生成支付回调地址</p>
+            </div>
+        </div>
+
+        <hr style="border: none; border-top: 1px solid var(--border-base); margin: 1.5rem 0;">
+
+        <!-- 商品配置 -->
+        <div class="form-row" style="display: flex; gap: 20px;">
+            <div class="form-group" style="flex: 1;">
+                <label for="mapayPrice">支付金额</label>
+                <input type="text" id="mapayPrice" name="mapay_price" value="{{ mapay_price or '19.9' }}"
+                    placeholder="19.9" class="form-control">
+                <p class="form-help">单位：元</p>
+            </div>
+
+            <div class="form-group" style="flex: 2;">
+                <label for="mapayProductName">商品名称</label>
+                <input type="text" id="mapayProductName" name="mapay_product_name" value="{{ mapay_product_name or 'GPT Team 会员' }}"
+                    placeholder="GPT Team 会员" class="form-control">
+                <p class="form-help">显示在支付页面的商品名称</p>
+            </div>
+        </div>
+
+        <button type="submit" class="btn btn-primary">保存支付设置</button>
+    </form>
+</div>
 {% endblock %}
 
 {% block extra_css %}
@@ -209,6 +293,54 @@
                 showToast('日志级别已保存', 'success');
             } else {
                 showToast(data.error || '保存失败', 'error');
+            }
+        } catch (error) {
+            showToast('网络错误', 'error');
+        }
+    });
+
+    // 支付设置表单
+    document.getElementById('paymentForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+
+        const alipay_enabled = document.getElementById('alipayEnabled').checked;
+        const wxpay_enabled = document.getElementById('wxpayEnabled').checked;
+        const mapay_id = document.getElementById('mapayId').value.trim();
+        const mapay_key = document.getElementById('mapayKey').value.trim();
+        const mapay_url = document.getElementById('mapayUrl').value.trim();
+        const mapay_domain = document.getElementById('mapayDomain').value.trim();
+        const mapay_price = document.getElementById('mapayPrice').value.trim();
+        const mapay_product_name = document.getElementById('mapayProductName').value.trim();
+
+        try {
+            // 保存支付方式配置
+            const methodsResponse = await fetch('/admin/settings/payment-methods', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ alipay_enabled, wxpay_enabled })
+            });
+
+            // 保存码支付配置
+            const mapayResponse = await fetch('/admin/settings/mapay', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    mapay_id,
+                    mapay_key,
+                    mapay_url,
+                    mapay_domain,
+                    mapay_price,
+                    mapay_product_name
+                })
+            });
+
+            const methodsData = await methodsResponse.json();
+            const mapayData = await mapayResponse.json();
+
+            if (methodsResponse.ok && mapayResponse.ok && methodsData.success && mapayData.success) {
+                showToast('支付设置已保存', 'success');
+            } else {
+                showToast(methodsData.error || mapayData.error || '保存失败', 'error');
             }
         } catch (error) {
             showToast('网络错误', 'error');

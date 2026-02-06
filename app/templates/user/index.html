@@ -1,0 +1,728 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GPT Team - 加入 ChatGPT Team</title>
+    <link rel="stylesheet" href="{{ url_for('static', path='/css/user.css') }}">
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        .method-selector {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 25px;
+        }
+
+        .method-option {
+            flex: 1;
+            padding: 16px 12px;
+            border: 2px solid var(--border-base);
+            border-radius: 12px;
+            cursor: pointer;
+            text-align: center;
+            transition: all 0.3s;
+            background: var(--bg-primary);
+        }
+
+        .method-option:hover {
+            border-color: var(--primary);
+            transform: translateY(-2px);
+        }
+
+        .method-option.selected {
+            border-color: var(--primary);
+            background: var(--primary-soft);
+        }
+
+        .method-option .method-icon {
+            font-size: 28px;
+            margin-bottom: 8px;
+            display: block;
+        }
+
+        .method-option.alipay .method-icon {
+            color: #1677ff;
+        }
+
+        .method-option.wxpay .method-icon {
+            color: #07c160;
+        }
+
+        .method-option.redeem .method-icon {
+            color: var(--primary);
+        }
+
+        .method-option .method-name {
+            font-weight: 600;
+            color: var(--text-primary);
+            font-size: 0.95rem;
+        }
+
+        .method-option .method-desc {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            margin-top: 4px;
+        }
+
+        .payment-form,
+        .redeem-form {
+            display: none;
+        }
+
+        .payment-form.active,
+        .redeem-form.active {
+            display: block;
+        }
+
+        .price-display {
+            text-align: center;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 12px;
+            color: white;
+            margin-bottom: 20px;
+        }
+
+        .price-display .amount {
+            font-size: 2.2rem;
+            font-weight: bold;
+        }
+
+        .price-display .amount small {
+            font-size: 1rem;
+            opacity: 0.8;
+        }
+
+        .price-display .product-name {
+            font-size: 0.95rem;
+            opacity: 0.9;
+            margin-top: 5px;
+        }
+
+        .features-list {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-bottom: 20px;
+            padding: 15px;
+            background: var(--bg-secondary);
+            border-radius: 10px;
+        }
+
+        .feature-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+        }
+
+        .feature-item i {
+            color: var(--success);
+            width: 16px;
+            height: 16px;
+        }
+
+        .qrcode-container {
+            display: none;
+            text-align: center;
+            padding: 25px;
+            background: white;
+            border-radius: 12px;
+            margin-top: 20px;
+            border: 1px solid var(--border-base);
+        }
+
+        .qrcode-container img {
+            max-width: 200px;
+            border-radius: 8px;
+            border: 1px solid var(--border-base);
+        }
+
+        .qrcode-container .tip {
+            margin-top: 15px;
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+        }
+
+        .countdown {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            color: #ff6b6b;
+            font-weight: 500;
+        }
+
+        .status-checking {
+            display: none;
+            text-align: center;
+            padding: 15px;
+            color: var(--text-secondary);
+            background: var(--bg-secondary);
+            border-radius: 8px;
+            margin-top: 15px;
+        }
+
+        .status-checking .spinner {
+            display: inline-block;
+            width: 18px;
+            height: 18px;
+            border: 2px solid var(--border-base);
+            border-top-color: var(--primary);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-right: 8px;
+            vertical-align: middle;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        .divider {
+            display: flex;
+            align-items: center;
+            margin: 25px 0;
+            color: var(--text-secondary);
+        }
+
+        .divider::before,
+        .divider::after {
+            content: '';
+            flex: 1;
+            height: 1px;
+            background: var(--border-base);
+        }
+
+        .divider span {
+            padding: 0 15px;
+            font-size: 0.85rem;
+        }
+
+        .warranty-section {
+            margin-top: 30px;
+            padding-top: 25px;
+            border-top: 1px solid var(--border-base);
+        }
+
+        .warranty-section h3 {
+            font-size: 1rem;
+            margin-bottom: 12px;
+            color: var(--text-primary);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        @media (max-width: 480px) {
+            .method-selector {
+                flex-direction: column;
+            }
+
+            .features-list {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>加入 ChatGPT Team</h1>
+            <p class="subtitle">选择支付方式或使用兑换码</p>
+            {% if remaining_spots is not none %}
+            <div class="spots-badge"
+                style="display: inline-flex; align-items: center; gap: 6px; background: var(--primary-soft); padding: 6px 12px; border-radius: 20px; font-size: 0.875rem; color: var(--primary); margin-top: 10px; border: 1px solid var(--border-base);">
+                <i data-lucide="users" style="width: 14px; height: 14px;"></i> 剩余车位: {{ remaining_spots }}
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- 主卡片 -->
+        <div id="mainCard" class="card">
+            <!-- 方式选择 -->
+            <div class="method-selector">
+                {% if alipay_enabled %}
+                <div class="method-option alipay {% if alipay_enabled %}selected{% endif %}" data-method="alipay">
+                    <span class="method-icon"><i data-lucide="smartphone"></i></span>
+                    <span class="method-name">支付宝</span>
+                </div>
+                {% endif %}
+                {% if wxpay_enabled %}
+                <div class="method-option wxpay {% if not alipay_enabled %}selected{% endif %}" data-method="wxpay">
+                    <span class="method-icon"><i data-lucide="message-circle"></i></span>
+                    <span class="method-name">微信支付</span>
+                </div>
+                {% endif %}
+                <div class="method-option redeem {% if not alipay_enabled and not wxpay_enabled %}selected{% endif %}" data-method="redeem">
+                    <span class="method-icon"><i data-lucide="ticket"></i></span>
+                    <span class="method-name">兑换码</span>
+                </div>
+            </div>
+
+            <!-- 支付表单 -->
+            <div class="payment-form {% if alipay_enabled or wxpay_enabled %}active{% endif %}" id="paymentForm">
+                <form id="payForm">
+                    <div class="form-group">
+                        <label for="payEmail">邮箱地址</label>
+                        <input type="email" id="payEmail" name="email" required placeholder="请输入您的邮箱地址"
+                            class="form-input">
+                        <p class="form-help">邀请将发送到此邮箱，请确保填写正确</p>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary" id="payBtn" style="width: 100%;">
+                        <i data-lucide="credit-card"></i> 立即支付 ¥{{ price }}
+                    </button>
+                </form>
+
+                <!-- 二维码显示区域 -->
+                <div class="qrcode-container" id="qrcodeContainer">
+                    <p style="margin-bottom: 10px; color: var(--text-secondary);">请使用<span id="payTypeName">支付宝</span>扫码支付</p>
+                    <img id="qrcodeImg" src="" alt="支付二维码">
+                    <div class="tip">
+                        <span class="countdown" id="countdown">05:00</span>
+                        <span> 后二维码过期</span>
+                    </div>
+                </div>
+
+                <!-- 状态检查提示 -->
+                <div class="status-checking" id="statusChecking">
+                    <span class="spinner"></span>
+                    <span>正在确认支付状态...</span>
+                </div>
+            </div>
+
+            <!-- 兑换码表单 -->
+            <div class="redeem-form {% if not alipay_enabled and not wxpay_enabled %}active{% endif %}" id="redeemForm">
+                <form id="codeForm">
+                    <div class="form-group">
+                        <label for="redeemEmail">邮箱地址</label>
+                        <input type="email" id="redeemEmail" name="email" required placeholder="请输入您的邮箱地址"
+                            class="form-input">
+                        <p class="form-help">邀请将发送到此邮箱</p>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="code">兑换码</label>
+                        <input type="text" id="code" name="code" required placeholder="请输入兑换码" class="form-input">
+                    </div>
+
+                    <button type="submit" class="btn btn-primary" id="redeemBtn" style="width: 100%;">
+                        <i data-lucide="check-circle"></i> 立即兑换
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <!-- 质保查询卡片 (独立显示) -->
+        <div id="warrantyCard" class="card" style="margin-top: 10px;">
+            <h3 style="font-size: 1rem; margin-bottom: 12px; color: var(--text-primary); display: flex; align-items: center; gap: 8px;">
+                <i data-lucide="shield" style="width: 18px; height: 18px;"></i>
+                质保查询
+            </h3>
+            <p class="form-help" style="margin-bottom: 12px;">
+                质保兑换码在 Team 被封后可在质保期内重复使用
+            </p>
+            <div class="form-group" style="margin-bottom: 12px;">
+                <input type="text" id="warrantyInput" placeholder="输入兑换码或邮箱查询" class="form-input">
+            </div>
+            <button type="button" class="btn btn-secondary" id="checkWarrantyBtn" onclick="checkWarranty()"
+                style="width: 100%;">
+                <i data-lucide="search"></i> 查询质保状态
+            </button>
+        </div>
+
+        <!-- 质保查询结果 -->
+        <div id="warrantyResult" class="card" style="display: none;">
+            <h2>质保查询结果</h2>
+            <div id="warrantyContent"></div>
+            <div class="actions" style="margin-top: 20px;">
+                <button onclick="hideWarrantyResult()" class="btn btn-secondary" style="width: 100%;">返回</button>
+            </div>
+        </div>
+
+        <!-- 兑换结果 -->
+        <div id="resultCard" class="card" style="display: none;">
+            <div id="resultContent"></div>
+        </div>
+    </div>
+
+    <!-- Toast提示 -->
+    <div id="toast" class="toast"></div>
+
+    <script>
+        // 初始化 Lucide 图标
+        if (window.lucide) lucide.createIcons();
+
+        // 支付方式配置
+        const alipayEnabled = {{ 'true' if alipay_enabled else 'false' }};
+        const wxpayEnabled = {{ 'true' if wxpay_enabled else 'false' }};
+
+        // 全局变量 - 根据可用支付方式设置默认值
+        let selectedMethod = alipayEnabled ? 'alipay' : (wxpayEnabled ? 'wxpay' : 'redeem');
+        let currentOrderNo = null;
+        let countdownInterval = null;
+        let expiresAt = null;
+
+        // 检查URL参数，处理支付成功跳转回来的情况
+        (function checkPaymentSuccess() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const paymentSuccess = urlParams.get('payment_success');
+            const orderNo = urlParams.get('order_no');
+            
+            if (paymentSuccess === '1') {
+                // 清除URL参数，避免刷新时重复显示
+                window.history.replaceState({}, document.title, window.location.pathname);
+                
+                // 显示支付成功提示
+                setTimeout(() => {
+                    showPaymentSuccessMessage(orderNo);
+                }, 100);
+            }
+        })();
+
+        function showPaymentSuccessMessage(orderNo) {
+            document.getElementById('mainCard').style.display = 'none';
+            document.getElementById('warrantyCard').style.display = 'none';
+            document.getElementById('resultCard').style.display = 'block';
+
+            document.getElementById('resultContent').innerHTML = `
+                <div style="text-align: center; padding: 20px;">
+                    <div style="width: 80px; height: 80px; background: #d4edda; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 20px; font-size: 40px; color: #28a745;">✓</div>
+                    <h2 style="color: #28a745; margin-bottom: 10px;">支付成功！</h2>
+                    <p style="color: var(--text-secondary); margin-bottom: 25px;">邀请已发送到您的邮箱，请查收并完成加入</p>
+                    ${orderNo ? `
+                    <div style="background: var(--bg-secondary); border-radius: 10px; padding: 20px; text-align: left; margin-bottom: 20px;">
+                        <p style="display: flex; justify-content: space-between; margin-bottom: 10px;"><span style="color: var(--text-secondary);">订单号</span><span style="font-family: monospace; font-size: 0.85rem;">${escapeHtml(orderNo)}</span></p>
+                    </div>
+                    ` : ''}
+                    <p style="color: var(--text-secondary); font-size: 0.9rem;">📧 请查收邮箱中的邀请邮件并完成加入</p>
+                    <button onclick="location.href='/'" class="btn btn-primary" style="margin-top: 20px; width: 100%;">返回首页</button>
+                </div>
+            `;
+        }
+
+        // 方式选择
+        document.querySelectorAll('.method-option').forEach(option => {
+            option.addEventListener('click', () => {
+                document.querySelectorAll('.method-option').forEach(o => o.classList.remove('selected'));
+                option.classList.add('selected');
+                selectedMethod = option.dataset.method;
+
+                // 切换表单显示
+                if (selectedMethod === 'redeem') {
+                    document.getElementById('paymentForm').classList.remove('active');
+                    document.getElementById('redeemForm').classList.add('active');
+                } else {
+                    document.getElementById('paymentForm').classList.add('active');
+                    document.getElementById('redeemForm').classList.remove('active');
+                }
+
+                // 重置状态
+                resetPaymentState();
+            });
+        });
+
+        // 检查库存
+        async function checkStock() {
+            try {
+                const response = await fetch('/api/stock/check');
+                const result = await response.json();
+                if (!result.success) {
+                    throw new Error(result.error || '库存检查失败');
+                }
+                if (result.available_spots <= 0) {
+                    throw new Error('暂无可用车位，请稍后再试');
+                }
+                return true;
+            } catch (error) {
+                throw error;
+            }
+        }
+
+        // 支付表单提交
+        document.getElementById('payForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const email = document.getElementById('payEmail').value;
+            const payBtn = document.getElementById('payBtn');
+
+            if (!email) {
+                showToast('请输入邮箱地址', 'error');
+                return;
+            }
+
+            payBtn.disabled = true;
+            payBtn.innerHTML = '<span class="spinner" style="display: inline-block; width: 16px; height: 16px; border: 2px solid rgba(255,255,255,0.3); border-top-color: white; border-radius: 50%; animation: spin 1s linear infinite; margin-right: 8px;"></span>检查库存中...';
+
+            try {
+                // 先检查库存
+                await checkStock();
+
+                payBtn.innerHTML = '<span class="spinner" style="display: inline-block; width: 16px; height: 16px; border: 2px solid rgba(255,255,255,0.3); border-top-color: white; border-radius: 50%; animation: spin 1s linear infinite; margin-right: 8px;"></span>创建订单中...';
+
+                const response = await fetch('/api/payment/create', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        email: email,
+                        pay_type: selectedMethod
+                    })
+                });
+
+                const result = await response.json();
+
+                if (!response.ok || !result.success) {
+                    throw new Error(result.detail || result.error || '创建订单失败');
+                }
+
+                currentOrderNo = result.order_no;
+                expiresAt = result.expires_at ? new Date(result.expires_at) : null;
+
+                if (result.qr_code) {
+                    showQRCode(result.qr_code);
+                } else if (result.pay_url) {
+                    // 跳转到支付页面，支付完成后由支付平台回调处理业务逻辑
+                    window.location.href = result.pay_url;
+                } else {
+                    throw new Error('未获取到支付信息');
+                }
+
+            } catch (error) {
+                showToast(error.message, 'error');
+            } finally {
+                payBtn.disabled = false;
+                payBtn.innerHTML = '<i data-lucide="credit-card"></i> 立即支付 ¥{{ price }}';
+                lucide.createIcons();
+            }
+        });
+
+        // 兑换码表单提交
+        document.getElementById('codeForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const email = document.getElementById('redeemEmail').value.trim();
+            const code = document.getElementById('code').value.trim();
+            const redeemBtn = document.getElementById('redeemBtn');
+
+            if (!email || !code) {
+                showToast('请填写完整信息', 'error');
+                return;
+            }
+
+            redeemBtn.disabled = true;
+            redeemBtn.innerHTML = '<span class="spinner" style="display: inline-block; width: 16px; height: 16px; border: 2px solid rgba(255,255,255,0.3); border-top-color: white; border-radius: 50%; animation: spin 1s linear infinite; margin-right: 8px;"></span>兑换中...';
+
+            try {
+                const response = await fetch('/redeem/confirm', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        email: email,
+                        code: code,
+                        team_id: null
+                    })
+                });
+
+                const result = await response.json();
+
+                if (response.ok && result.success) {
+                    showSuccessResult(result, email);
+                } else {
+                    const errorMsg = result.detail || result.error || '兑换失败';
+                    showToast(errorMsg, 'error');
+                }
+
+            } catch (error) {
+                showToast('兑换失败: ' + error.message, 'error');
+            } finally {
+                redeemBtn.disabled = false;
+                redeemBtn.innerHTML = '<i data-lucide="check-circle"></i> 立即兑换';
+                lucide.createIcons();
+            }
+        });
+
+        function showQRCode(qrUrl) {
+            const container = document.getElementById('qrcodeContainer');
+            const img = document.getElementById('qrcodeImg');
+            const payTypeName = document.getElementById('payTypeName');
+
+            img.src = qrUrl;
+            payTypeName.textContent = selectedMethod === 'alipay' ? '支付宝' : '微信';
+            container.style.display = 'block';
+
+            startCountdown();
+            lucide.createIcons();
+        }
+
+        function startCountdown() {
+            if (countdownInterval) clearInterval(countdownInterval);
+
+            countdownInterval = setInterval(() => {
+                if (!expiresAt) return;
+
+                const now = new Date();
+                const diff = expiresAt - now;
+
+                if (diff <= 0) {
+                    clearInterval(countdownInterval);
+                    document.getElementById('countdown').textContent = '已过期';
+                    document.getElementById('qrcodeContainer').innerHTML = '<p style="color: #ff6b6b; padding: 20px;">订单已过期，请重新创建</p>';
+                    stopStatusCheck();
+                    return;
+                }
+
+                const minutes = Math.floor(diff / 60000);
+                const seconds = Math.floor((diff % 60000) / 1000);
+                document.getElementById('countdown').textContent =
+                    `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+            }, 1000);
+        }
+
+        function stopCountdown() {
+            if (countdownInterval) {
+                clearInterval(countdownInterval);
+                countdownInterval = null;
+            }
+        }
+
+        function resetPaymentState() {
+            stopCountdown();
+            document.getElementById('qrcodeContainer').style.display = 'none';
+            currentOrderNo = null;
+            expiresAt = null;
+        }
+
+        function showSuccessResult(data, email) {
+            document.getElementById('mainCard').style.display = 'none';
+            document.getElementById('warrantyCard').style.display = 'none';
+            document.getElementById('resultCard').style.display = 'block';
+
+            const teamInfo = data.team_info || {};
+            document.getElementById('resultContent').innerHTML = `
+                <div style="text-align: center; padding: 20px;">
+                    <div style="width: 80px; height: 80px; background: #d4edda; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 20px; font-size: 40px; color: #28a745;">✓</div>
+                    <h2 style="color: #28a745; margin-bottom: 10px;">兑换成功！</h2>
+                    <p style="color: var(--text-secondary); margin-bottom: 25px;">${escapeHtml(data.message || '已成功加入 Team')}</p>
+                    <div style="background: var(--bg-secondary); border-radius: 10px; padding: 20px; text-align: left; margin-bottom: 20px;">
+                        <p style="display: flex; justify-content: space-between; margin-bottom: 10px;"><span style="color: var(--text-secondary);">邮箱</span><span>${escapeHtml(email)}</span></p>
+                        <p style="display: flex; justify-content: space-between; margin-bottom: 10px;"><span style="color: var(--text-secondary);">Team</span><span>${escapeHtml(teamInfo.team_name || '-')}</span></p>
+                        ${teamInfo.expires_at ? `<p style="display: flex; justify-content: space-between;"><span style="color: var(--text-secondary);">到期时间</span><span>${formatDate(teamInfo.expires_at)}</span></p>` : ''}
+                    </div>
+                    <p style="color: var(--text-secondary); font-size: 0.9rem;">📧 请查收邮箱中的邀请邮件并完成加入</p>
+                    <button onclick="location.reload()" class="btn btn-primary" style="margin-top: 20px; width: 100%;">返回首页</button>
+                </div>
+            `;
+        }
+
+        // 质保查询
+        async function checkWarranty() {
+            const input = document.getElementById('warrantyInput').value.trim();
+            if (!input) {
+                showToast('请输入兑换码或邮箱', 'error');
+                return;
+            }
+
+            const btn = document.getElementById('checkWarrantyBtn');
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner" style="display: inline-block; width: 14px; height: 14px; border: 2px solid var(--border-base); border-top-color: var(--primary); border-radius: 50%; animation: spin 1s linear infinite; margin-right: 8px;"></span>查询中...';
+
+            try {
+                const response = await fetch('/warranty/check', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(input.includes('@') ? { email: input } : { code: input })
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    showWarrantyResult(result);
+                } else {
+                    showToast(result.error || '查询失败', 'error');
+                }
+            } catch (error) {
+                showToast('查询失败: ' + error.message, 'error');
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '<i data-lucide="search"></i> 查询质保状态';
+                lucide.createIcons();
+            }
+        }
+
+        function showWarrantyResult(data) {
+            document.getElementById('mainCard').style.display = 'none';
+            document.getElementById('warrantyCard').style.display = 'none';
+            document.getElementById('warrantyResult').style.display = 'block';
+
+            const records = data.records || [];
+            let html = '';
+
+            if (records.length === 0) {
+                html = '<p style="text-align: center; color: var(--text-secondary); padding: 20px;">未找到相关记录</p>';
+            } else {
+                records.forEach(record => {
+                    const statusColor = record.can_reuse ? '#28a745' : '#dc3545';
+                    const statusText = record.can_reuse ? '可重新兑换' : '不可使用';
+
+                    html += `
+                        <div style="background: var(--bg-secondary); border-radius: 10px; padding: 15px; margin-bottom: 10px;">
+                            <p style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                                <span style="color: var(--text-secondary);">兑换码</span>
+                                <code style="font-size: 0.85rem;">${escapeHtml(record.code)}</code>
+                            </p>
+                            <p style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                                <span style="color: var(--text-secondary);">状态</span>
+                                <span style="color: ${statusColor}; font-weight: 500;">${statusText}</span>
+                            </p>
+                            ${record.warranty_expires_at ? `
+                            <p style="display: flex; justify-content: space-between;">
+                                <span style="color: var(--text-secondary);">质保到期</span>
+                                <span>${formatDate(record.warranty_expires_at)}</span>
+                            </p>
+                            ` : ''}
+                        </div>
+                    `;
+                });
+            }
+
+            document.getElementById('warrantyContent').innerHTML = html;
+        }
+
+        function hideWarrantyResult() {
+            document.getElementById('warrantyResult').style.display = 'none';
+            document.getElementById('mainCard').style.display = 'block';
+            document.getElementById('warrantyCard').style.display = 'block';
+        }
+
+        function escapeHtml(unsafe) {
+            if (unsafe === null || unsafe === undefined) return '';
+            return String(unsafe)
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;")
+                .replace(/'/g, "&#039;");
+        }
+
+        function formatDate(dateStr) {
+            if (!dateStr) return '-';
+            const date = new Date(dateStr);
+            return date.toLocaleDateString('zh-CN', { year: 'numeric', month: '2-digit', day: '2-digit' });
+        }
+
+        function showToast(message, type = 'info') {
+            const toast = document.getElementById('toast');
+            toast.textContent = message;
+            toast.className = `toast show ${type}`;
+            setTimeout(() => toast.classList.remove('show'), 3000);
+        }
+    </script>
+</body>
+
+</html>
