@@ -7,11 +7,13 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from starlette.middleware.sessions import SessionMiddleware
+import asyncio
 import logging
+import random
 from pathlib import Path
 from datetime import datetime
 
-from contextlib import asynccontextmanager
+from contextlib import asynccontextmanager, suppress
 # 导入路由
 from app.routes import redeem, auth, admin, api, user, warranty, payment
 from app.config import settings
@@ -24,12 +26,57 @@ APP_DIR = BASE_DIR / "app"
 
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
+
+async def _team_auto_sync_loop(
+    stop_event: asyncio.Event,
+    min_minutes: int,
+    max_minutes: int
+):
+    """后台随机间隔同步 Team 状态"""
+    from app.services.team import TeamService
+
+    team_service = TeamService()
+
+    while not stop_event.is_set():
+        wait_minutes = random.randint(min_minutes, max_minutes)
+        logger.info(f"Team 自动同步任务下一次将在 {wait_minutes} 分钟后执行")
+
+        try:
+            await asyncio.wait_for(stop_event.wait(), timeout=wait_minutes * 60)
+            break
+        except asyncio.TimeoutError:
+            pass
+
+        if stop_event.is_set():
+            break
+
+        try:
+            async with AsyncSessionLocal() as session:
+                result = await team_service.sync_all_teams(session)
+
+            if result.get("success"):
+                logger.info(
+                    "Team 自动同步完成: 总数 %s, 成功 %s, 失败 %s",
+                    result.get("total", 0),
+                    result.get("success_count", 0),
+                    result.get("failed_count", 0)
+                )
+            else:
+                logger.warning(f"Team 自动同步失败: {result.get('error')}")
+        except asyncio.CancelledError:
+            raise
+        except Exception as e:
+            logger.error(f"Team 自动同步异常: {e}")
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """
     应用生命周期管理
     启动时初始化数据库，关闭时释放资源
     """
+    auto_sync_task = None
+    auto_sync_stop_event = asyncio.Event()
+
     logger.info("系统正在启动，正在初始化数据库...")
     try:
         # 0. 确保数据库目录存在
@@ -49,9 +96,39 @@ async def lifespan(app: FastAPI):
         logger.info("数据库初始化完成")
     except Exception as e:
         logger.error(f"数据库初始化失败: {e}")
-    
+
+    if settings.team_auto_sync_enabled:
+        min_minutes = max(1, settings.team_auto_sync_min_minutes)
+        max_minutes = max(min_minutes, settings.team_auto_sync_max_minutes)
+
+        if (
+            min_minutes != settings.team_auto_sync_min_minutes
+            or max_minutes != settings.team_auto_sync_max_minutes
+        ):
+            logger.warning(
+                "检测到 Team 自动同步间隔配置异常，已自动修正为 %s-%s 分钟",
+                min_minutes,
+                max_minutes
+            )
+
+        auto_sync_task = asyncio.create_task(
+            _team_auto_sync_loop(auto_sync_stop_event, min_minutes, max_minutes)
+        )
+        logger.info(f"Team 自动同步任务已启动，随机间隔 {min_minutes}-{max_minutes} 分钟")
+    else:
+        logger.info("Team 自动同步任务已禁用")
+
     yield
-    
+
+    if auto_sync_task:
+        auto_sync_stop_event.set()
+        try:
+            await asyncio.wait_for(auto_sync_task, timeout=30)
+        except asyncio.TimeoutError:
+            auto_sync_task.cancel()
+            with suppress(asyncio.CancelledError):
+                await auto_sync_task
+
     # 关闭连接
     await close_db()
     logger.info("系统正在关闭，已释放数据库连接")

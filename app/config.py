@@ -41,6 +41,11 @@ class Settings(BaseSettings):
     # 时区配置
     timezone: str = "Asia/Shanghai"
 
+    # Team 自动同步配置
+    team_auto_sync_enabled: bool = True
+    team_auto_sync_min_minutes: int = 5
+    team_auto_sync_max_minutes: int = 10
+
     # 码支付配置
     mapay_id: str = ""  # 码支付商户ID
     mapay_key: str = ""  # 码支付通信密钥
