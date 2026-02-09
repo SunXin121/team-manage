@@ -34,12 +34,40 @@ class Team(Base):
 
     # 关系
     team_accounts = relationship("TeamAccount", back_populates="team", cascade="all, delete-orphan")
+    team_members = relationship("TeamMember", back_populates="team", cascade="all, delete-orphan")
     redemption_records = relationship("RedemptionRecord", back_populates="team", cascade="all, delete-orphan")
     invite_records = relationship("InviteRecord", back_populates="team", cascade="all, delete-orphan")
 
     # 索引
     __table_args__ = (
         Index("idx_status", "status"),
+    )
+
+
+class TeamMember(Base):
+    """Team 成员明细表"""
+    __tablename__ = "team_members"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    team_id = Column(Integer, ForeignKey("teams.id", ondelete="CASCADE"), nullable=False)
+    user_id = Column(String(100), comment="用户 ID")
+    email = Column(String(255), comment="成员邮箱")
+    name = Column(String(255), comment="成员名称")
+    role = Column(String(50), comment="成员角色")
+    status = Column(String(20), default="joined", comment="状态: joined/invited")
+    added_at = Column(DateTime, comment="加入/邀请时间")
+    created_at = Column(DateTime, default=get_now, comment="创建时间")
+    updated_at = Column(DateTime, default=get_now, onupdate=get_now, comment="更新时间")
+
+    # 关系
+    team = relationship("Team", back_populates="team_members")
+
+    # 索引
+    __table_args__ = (
+        Index("idx_team_member_team", "team_id"),
+        Index("idx_team_member_status", "status"),
+        Index("idx_team_member_email", "email"),
+        Index("idx_team_member_user", "user_id"),
     )
 
 

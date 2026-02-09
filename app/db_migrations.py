@@ -135,6 +135,34 @@ def run_auto_migration():
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_invite_team ON invite_records(team_id)")
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_invite_time ON invite_records(invited_at)")
 
+        # 检查并创建 Team 成员明细表
+        cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='team_members'")
+        team_members_exists = cursor.fetchone() is not None
+        if not team_members_exists:
+            logger.info("创建 team_members 表")
+            cursor.execute("""
+                CREATE TABLE team_members (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    team_id INTEGER NOT NULL,
+                    user_id VARCHAR(100),
+                    email VARCHAR(255),
+                    name VARCHAR(255),
+                    role VARCHAR(50),
+                    status VARCHAR(20) DEFAULT 'joined',
+                    added_at DATETIME,
+                    created_at DATETIME,
+                    updated_at DATETIME,
+                    FOREIGN KEY(team_id) REFERENCES teams(id)
+                )
+            """)
+            migrations_applied.append("create_table.team_members")
+
+        # 创建 team_members 索引
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_team_member_team ON team_members(team_id)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_team_member_status ON team_members(status)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_team_member_email ON team_members(email)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_team_member_user ON team_members(user_id)")
+
         # 历史数据回填：兑换记录 -> 邀请记录
         cursor.execute("""
             INSERT INTO invite_records (

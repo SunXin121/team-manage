@@ -9,7 +9,7 @@ from sqlalchemy import select, update, delete, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.models import Team, TeamAccount, RedemptionRecord, InviteRecord, PaymentOrder
+from app.models import Team, TeamAccount, TeamMember, RedemptionRecord, InviteRecord, PaymentOrder
 from app.services.chatgpt import ChatGPTService
 from app.services.encryption import encryption_service
 from app.utils.token_parser import TokenParser
@@ -28,6 +28,81 @@ class TeamService:
         self.chatgpt_service = chatgpt_service
         self.token_parser = TokenParser()
         self.jwt_parser = JWTParser()
+
+    def _parse_member_datetime(self, value: Any) -> Optional[datetime]:
+        """解析成员时间字段为 datetime"""
+        if not value:
+            return None
+
+        if isinstance(value, datetime):
+            return value
+
+        if not isinstance(value, str):
+            return None
+
+        raw = value.strip()
+        if not raw:
+            return None
+
+        normalized = raw.replace("Z", "+00:00")
+        try:
+            return datetime.fromisoformat(normalized)
+        except Exception:
+            try:
+                return datetime.fromisoformat(normalized.replace("+00:00", ""))
+            except Exception:
+                logger.warning(f"解析成员时间失败: {raw}")
+                return None
+
+    def _build_member_snapshot(
+        self,
+        members_result: Dict[str, Any],
+        invites_result: Dict[str, Any]
+    ) -> List[Dict[str, Any]]:
+        """将接口返回的成员/邀请数据转换为本地成员快照"""
+        snapshot: List[Dict[str, Any]] = []
+
+        for member in members_result.get("members", []):
+            snapshot.append({
+                "user_id": member.get("id"),
+                "email": member.get("email"),
+                "name": member.get("name"),
+                "role": member.get("role"),
+                "status": "joined",
+                "added_at": self._parse_member_datetime(member.get("created_time"))
+            })
+
+        for invite in invites_result.get("items", []):
+            snapshot.append({
+                "user_id": invite.get("user_id"),
+                "email": invite.get("email_address") or invite.get("email"),
+                "name": invite.get("name"),
+                "role": invite.get("role") or "standard-user",
+                "status": "invited",
+                "added_at": self._parse_member_datetime(invite.get("created_time"))
+            })
+
+        return snapshot
+
+    async def _replace_team_members(
+        self,
+        team_id: int,
+        members_snapshot: List[Dict[str, Any]],
+        db_session: AsyncSession
+    ) -> None:
+        """使用最新快照覆盖 Team 成员明细"""
+        await db_session.execute(delete(TeamMember).where(TeamMember.team_id == team_id))
+
+        for item in members_snapshot:
+            db_session.add(TeamMember(
+                team_id=team_id,
+                user_id=item.get("user_id"),
+                email=item.get("email"),
+                name=item.get("name"),
+                role=item.get("role"),
+                status=item.get("status") or "joined",
+                added_at=item.get("added_at")
+            ))
 
     async def _handle_api_error(self, result: Dict[str, Any], team: Team, db_session: AsyncSession) -> bool:
         """
@@ -385,6 +460,9 @@ class TeamService:
                         is_primary=(acc["account_id"] == selected_account["account_id"])
                     )
                     db_session.add(team_account)
+
+                member_snapshot = self._build_member_snapshot(members_result, invites_result)
+                await self._replace_team_members(team.id, member_snapshot, db_session)
                 
                 imported_ids.append(team.id)
 
@@ -741,6 +819,9 @@ class TeamService:
             team.status = status
             team.error_count = 0  # 同步成功，重置错误次数
             team.last_sync = get_now()
+            member_snapshot = self._build_member_snapshot(members_result, invites_result)
+            await self._replace_team_members(team.id, member_snapshot, db_session)
+
 
             await db_session.commit()
 
@@ -839,17 +920,16 @@ class TeamService:
         db_session: AsyncSession
     ) -> Dict[str, Any]:
         """
-        获取 Team 成员列表
+        ?? Team ????????????????????
 
         Args:
             team_id: Team ID
-            db_session: 数据库会话
+            db_session: ?????
 
         Returns:
-            结果字典,包含 success, members, total, error
+            ??????? success, members, total, error
         """
         try:
-            # 1. 查询 Team
             stmt = select(Team).where(Team.id == team_id)
             result = await db_session.execute(stmt)
             team = result.scalar_one_or_none()
@@ -859,117 +939,44 @@ class TeamService:
                     "success": False,
                     "members": [],
                     "total": 0,
-                    "error": f"Team ID {team_id} 不存在"
+                    "error": f"Team ID {team_id} ???"
                 }
 
-            # 2. 确保 AT Token 有效
-            access_token = await self.ensure_access_token(team, db_session)
-            if not access_token:
-                return {
-                    "success": False,
-                    "members": [],
-                    "total": 0,
-                    "error": "Token 已过期且无法刷新"
-                }
-
-            # 3. 调用 ChatGPT API 获取成员列表
-            members_result = await self.chatgpt_service.get_members(
-                access_token,
-                team.account_id,
-                db_session
+            members_stmt = (
+                select(TeamMember)
+                .where(TeamMember.team_id == team_id)
+                .order_by(TeamMember.status.asc(), TeamMember.added_at.desc())
             )
+            members_result = await db_session.execute(members_stmt)
+            db_members = members_result.scalars().all()
 
-            if not members_result["success"]:
-                # 检查是否封号或 Token 失效
-                if await self._handle_api_error(members_result, team, db_session):
-                    error_msg = members_result.get("error", "未知错误")
-                    if members_result.get("error_code") == "account_deactivated":
-                        error_msg = "账号已封禁 (account_deactivated)"
-                    elif members_result.get("error_code") == "token_invalidated":
-                        error_msg = "Token 已失效 (token_invalidated)"
-                        
-                    return {
-                        "success": False,
-                        "members": [],
-                        "total": 0,
-                        "error": error_msg
-                    }
-
-                return {
-                    "success": False,
-                    "members": [],
-                    "total": 0,
-                    "error": f"获取成员列表失败: {members_result['error']}"
-                }
-
-            # 4. 调用 ChatGPT API 获取邀请列表
-            invites_result = await self.chatgpt_service.get_invites(
-                access_token,
-                team.account_id,
-                db_session
-            )
-            
-            if not invites_result["success"]:
-                # 检查是否封号或 Token 失效
-                if await self._handle_api_error(invites_result, team, db_session):
-                    error_msg = invites_result.get("error", "未知错误")
-                    if invites_result.get("error_code") == "account_deactivated":
-                        error_msg = "账号已封禁 (account_deactivated)"
-                    elif invites_result.get("error_code") == "token_invalidated":
-                        error_msg = "Token 已失效 (token_invalidated)"
-                        
-                    return {
-                        "success": False,
-                        "members": [],
-                        "total": 0,
-                        "error": error_msg
-                    }
-
-            # 5. 合并列表并统一格式
-            all_members = []
-            
-            # 处理已加入成员
-            for m in members_result["members"]:
-                all_members.append({
-                    "user_id": m.get("id"),
-                    "email": m.get("email"),
-                    "name": m.get("name"),
-                    "role": m.get("role"),
-                    "added_at": m.get("created_time"),
-                    "status": "joined"
+            members = []
+            for member in db_members:
+                members.append({
+                    "user_id": member.user_id,
+                    "email": member.email,
+                    "name": member.name,
+                    "role": member.role,
+                    "added_at": member.added_at.isoformat() if member.added_at else None,
+                    "status": member.status
                 })
-            
-            # 处理待加入成员
-            if invites_result["success"]:
-                for inv in invites_result["items"]:
-                    all_members.append({
-                        "user_id": None, # 邀请还没有 user_id
-                        "email": inv.get("email_address"),
-                        "name": None,
-                        "role": inv.get("role"),
-                        "added_at": inv.get("created_time"),
-                        "status": "invited"
-                    })
 
-            logger.info(f"获取 Team {team_id} 成员列表成功: 共 {len(all_members)} 个成员 (已加入: {members_result['total']})")
-
-            # 6. 请求成功，重置错误状态
-            await self._reset_error_status(team, db_session)
+            logger.info(f"?? Team {team_id} ??????(???): ? {len(members)} ???")
 
             return {
                 "success": True,
-                "members": all_members,
-                "total": len(all_members),
+                "members": members,
+                "total": len(members),
                 "error": None
             }
 
         except Exception as e:
-            logger.error(f"获取成员列表失败: {e}")
+            logger.error(f"????????: {e}")
             return {
                 "success": False,
                 "members": [],
                 "total": 0,
-                "error": f"获取成员列表失败: {str(e)}"
+                "error": f"????????: {str(e)}"
             }
 
     async def revoke_team_invite(
@@ -1043,6 +1050,14 @@ class TeamService:
             # 4. 更新成员数 (如果是按席位算的，撤回邀请应该减少)
             if team.current_members > 0:
                 team.current_members -= 1
+
+            await db_session.execute(
+                delete(TeamMember).where(
+                    TeamMember.team_id == team_id,
+                    TeamMember.status == "invited",
+                    TeamMember.email == email
+                )
+            )
             
             if team.current_members < team.max_members:
                 if team.status == "full":
@@ -1158,6 +1173,24 @@ class TeamService:
             if team.current_members >= team.max_members:
                 team.status = "full"
 
+
+            await db_session.execute(
+                delete(TeamMember).where(
+                    TeamMember.team_id == team_id,
+                    TeamMember.status == "invited",
+                    TeamMember.email == email
+                )
+            )
+
+            db_session.add(TeamMember(
+                team_id=team_id,
+                user_id=None,
+                email=email,
+                name=None,
+                role="standard-user",
+                status="invited",
+                added_at=get_now()
+            ))
             await db_session.commit()
 
             logger.info(f"添加成员成功: {email} -> Team {team_id}")
@@ -1251,6 +1284,13 @@ class TeamService:
             # 4. 更新成员数
             if team.current_members > 0:
                 team.current_members -= 1
+
+            await db_session.execute(
+                delete(TeamMember).where(
+                    TeamMember.team_id == team_id,
+                    TeamMember.user_id == user_id
+                )
+            )
 
             # 更新状态
             if team.current_members < team.max_members:
@@ -1731,6 +1771,7 @@ class TeamService:
 
             # 3. 删除 Team (级联删除 team_accounts)
             await db_session.delete(team)
+
             await db_session.commit()
 
             logger.info(f"删除 Team {team_id} 成功")
