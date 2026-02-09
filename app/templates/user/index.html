@@ -667,24 +667,55 @@
                 html = '<p style="text-align: center; color: var(--text-secondary); padding: 20px;">未找到相关记录</p>';
             } else {
                 records.forEach(record => {
-                    const statusColor = record.can_reuse ? '#28a745' : '#dc3545';
-                    const statusText = record.can_reuse ? '可重新兑换' : '不可使用';
+                    let statusColor = '#6b7280';
+                    let statusText = '状态未知';
+
+                    if (record.status === 'after_sales_available') {
+                        statusColor = '#28a745';
+                        statusText = '可售后';
+                    } else if (record.status === 'normal') {
+                        statusColor = '#1677ff';
+                        statusText = '状态正常';
+                    } else if (record.status === 'expired') {
+                        statusColor = '#dc3545';
+                        statusText = '售后过期';
+                    }
 
                     html += `
                         <div style="background: var(--bg-secondary); border-radius: 10px; padding: 15px; margin-bottom: 10px;">
                             <p style="display: flex; justify-content: space-between; margin-bottom: 8px;">
-                                <span style="color: var(--text-secondary);">兑换码</span>
-                                <code style="font-size: 0.85rem;">${escapeHtml(record.code)}</code>
+                                <span style="color: var(--text-secondary);">来源类型</span>
+                                <span>${record.source_type === 'payment' ? '支付邀请' : '兑换码邀请'}</span>
+                            </p>
+                            <p style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                                <span style="color: var(--text-secondary);">标识</span>
+                                <code style="font-size: 0.85rem;">${escapeHtml(record.code || '-')}</code>
                             </p>
                             <p style="display: flex; justify-content: space-between; margin-bottom: 8px;">
                                 <span style="color: var(--text-secondary);">状态</span>
                                 <span style="color: ${statusColor}; font-weight: 500;">${statusText}</span>
                             </p>
+                            <p style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                                <span style="color: var(--text-secondary);">Team 状态</span>
+                                <span>${escapeHtml(record.team_status || '-')}</span>
+                            </p>
+                            ${record.status_reason ? `
+                            <p style="margin-bottom: 8px; color: var(--text-secondary);">
+                                ${escapeHtml(record.status_reason)}
+                            </p>
+                            ` : ''}
                             ${record.warranty_expires_at ? `
                             <p style="display: flex; justify-content: space-between;">
-                                <span style="color: var(--text-secondary);">质保到期</span>
+                                <span style="color: var(--text-secondary);">售后到期</span>
                                 <span>${formatDate(record.warranty_expires_at)}</span>
                             </p>
+                            ` : ''}
+                            ${record.status === 'after_sales_available' ? `
+                            <div style="margin-top: 12px;">
+                                <button class="btn btn-primary" style="width: 100%;" onclick="reinviteAfterSales('${escapeHtml(record.email || '')}', '${escapeHtml(record.code || '')}', this)">
+                                    立即售后重邀
+                                </button>
+                            </div>
                             ` : ''}
                         </div>
                     `;
@@ -692,6 +723,53 @@
             }
 
             document.getElementById('warrantyContent').innerHTML = html;
+        }
+
+        async function reinviteAfterSales(email, code, btn) {
+            if (!email) {
+                showToast('缺少邮箱信息，无法售后重邀', 'error');
+                return;
+            }
+
+            if (!btn) return;
+            const originalText = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = '处理中...';
+
+            try {
+                const response = await fetch('/warranty/reinvite', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, code: code || null })
+                });
+
+                const result = await response.json();
+                if (!response.ok || !result.success) {
+                    showToast(result.detail || result.error || '售后重邀失败', 'error');
+                    return;
+                }
+
+                showToast(result.message || '售后重邀成功，请查收邮箱', 'success');
+
+                const teamInfo = result.team_info || {};
+                const infoHtml = `
+                    <div style="margin-top: 12px; padding: 12px; border-radius: 8px; background: rgba(34, 197, 94, 0.1); border: 1px solid rgba(34, 197, 94, 0.25); color: var(--text-primary);">
+                        <div style="font-weight: 600; margin-bottom: 6px;">已发送新 Team 邀请</div>
+                        <div style="font-size: 0.9rem; color: var(--text-secondary);">Team: ${escapeHtml(teamInfo.team_name || '-')}</div>
+                        ${teamInfo.expires_at ? `<div style="font-size: 0.9rem; color: var(--text-secondary);">到期: ${formatDate(teamInfo.expires_at)}</div>` : ''}
+                    </div>
+                `;
+
+                const wrapper = btn.closest('div[style*="background: var(--bg-secondary)"]') || btn.parentElement;
+                if (wrapper) {
+                    wrapper.insertAdjacentHTML('beforeend', infoHtml);
+                }
+            } catch (error) {
+                showToast('售后重邀失败: ' + error.message, 'error');
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = originalText;
+            }
         }
 
         function hideWarrantyResult() {

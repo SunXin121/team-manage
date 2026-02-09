@@ -36,6 +36,9 @@ class WarrantyCheckRecord(BaseModel):
     team_status: Optional[str]
     team_expires_at: Optional[str]
     email: Optional[str] = None
+    status_reason: Optional[str] = None
+    can_reuse: Optional[bool] = None
+    source_type: Optional[str] = None
 
 
 class WarrantyCheckResponse(BaseModel):
@@ -49,6 +52,20 @@ class WarrantyCheckResponse(BaseModel):
     original_code: Optional[str]
     records: list[WarrantyCheckRecord] = []
     message: Optional[str]
+    error: Optional[str]
+
+
+class WarrantyReinviteRequest(BaseModel):
+    """售后重邀请求"""
+    email: EmailStr
+    code: Optional[str] = None
+
+
+class WarrantyReinviteResponse(BaseModel):
+    """售后重邀响应"""
+    success: bool
+    message: Optional[str]
+    team_info: Optional[dict]
     error: Optional[str]
 
 
@@ -123,3 +140,38 @@ async def query_warranty(
 ):
     """兼容旧前端 /warranty/query，转发到 /warranty/check"""
     return await check_warranty(request=request, db_session=db_session)
+
+
+@router.post("/reinvite", response_model=WarrantyReinviteResponse)
+async def reinvite_warranty(
+    request: WarrantyReinviteRequest,
+    db_session: AsyncSession = Depends(get_db)
+):
+    """售后重邀：满足售后条件时，发送新 Team 邀请"""
+    try:
+        result = await warranty_service.reinvite_after_sales(
+            db_session,
+            email=request.email,
+            code=request.code
+        )
+
+        if not result.get("success"):
+            raise HTTPException(
+                status_code=400,
+                detail=result.get("error", "售后重邀失败")
+            )
+
+        return WarrantyReinviteResponse(
+            success=True,
+            message=result.get("message"),
+            team_info=result.get("team_info"),
+            error=None
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"售后重邀失败: {str(e)}"
+        )
