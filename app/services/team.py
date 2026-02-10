@@ -4,7 +4,7 @@ Team 管理服务
 """
 import logging
 from typing import Optional, Dict, Any, List
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from sqlalchemy import select, update, delete, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -1390,6 +1390,145 @@ class TeamService:
                 "success": False,
                 "message": None,
                 "error": f"删除成员失败: {str(e)}"
+            }
+
+    async def cleanup_expired_members_by_invite_records(
+        self,
+        db_session: AsyncSession,
+        expire_days: int = 30
+    ) -> Dict[str, Any]:
+        """
+        按邀请记录扫描到期成员并从对应 Team 删除。
+
+        规则：
+        - 对每个 team_id + email，只看最新 invited_at
+        - 若最新 invited_at <= 当前时间 - expire_days，则视为到期
+        - 优先删除 joined 成员（有 user_id），否则撤回 invited 邀请
+        """
+        try:
+            if expire_days < 1:
+                return {
+                    "success": False,
+                    "stats": {
+                        "scanned": 0,
+                        "deleted": 0,
+                        "revoked": 0,
+                        "skipped": 0,
+                        "failed": 0
+                    },
+                    "error": "expire_days 必须大于 0"
+                }
+
+            cutoff_time = get_now() - timedelta(days=expire_days)
+
+            normalized_email_expr = func.lower(func.trim(InviteRecord.email))
+            latest_invite_subquery = (
+                select(
+                    InviteRecord.team_id.label("team_id"),
+                    normalized_email_expr.label("normalized_email"),
+                    func.max(InviteRecord.invited_at).label("latest_invited_at")
+                )
+                .where(InviteRecord.team_id.isnot(None))
+                .where(InviteRecord.email.isnot(None))
+                .group_by(InviteRecord.team_id, normalized_email_expr)
+                .subquery()
+            )
+
+            expired_stmt = (
+                select(
+                    latest_invite_subquery.c.team_id,
+                    latest_invite_subquery.c.normalized_email,
+                    latest_invite_subquery.c.latest_invited_at,
+                )
+                .where(latest_invite_subquery.c.latest_invited_at.isnot(None))
+                .where(latest_invite_subquery.c.latest_invited_at <= cutoff_time)
+            )
+
+            expired_rows_result = await db_session.execute(expired_stmt)
+            expired_rows = expired_rows_result.all()
+
+            stats = {
+                "scanned": len(expired_rows),
+                "deleted": 0,
+                "revoked": 0,
+                "skipped": 0,
+                "failed": 0
+            }
+
+            for row in expired_rows:
+                team_id = row[0]
+                normalized_email = (row[1] or "").strip().lower()
+                if not team_id or not normalized_email:
+                    stats["skipped"] += 1
+                    continue
+
+                joined_member_stmt = (
+                    select(TeamMember)
+                    .where(TeamMember.team_id == team_id)
+                    .where(func.lower(func.trim(TeamMember.email)) == normalized_email)
+                    .where(TeamMember.status == "joined")
+                    .where(TeamMember.user_id.isnot(None))
+                    .order_by(TeamMember.added_at.desc(), TeamMember.id.desc())
+                    .limit(1)
+                )
+                joined_member_result = await db_session.execute(joined_member_stmt)
+                joined_member = joined_member_result.scalar_one_or_none()
+
+                if joined_member:
+                    delete_result = await self.delete_team_member(
+                        team_id=team_id,
+                        user_id=joined_member.user_id,
+                        db_session=db_session
+                    )
+                    if delete_result.get("success"):
+                        stats["deleted"] += 1
+                    else:
+                        stats["failed"] += 1
+                    continue
+
+                invited_member_stmt = (
+                    select(TeamMember)
+                    .where(TeamMember.team_id == team_id)
+                    .where(func.lower(func.trim(TeamMember.email)) == normalized_email)
+                    .where(TeamMember.status == "invited")
+                    .order_by(TeamMember.added_at.desc(), TeamMember.id.desc())
+                    .limit(1)
+                )
+                invited_member_result = await db_session.execute(invited_member_stmt)
+                invited_member = invited_member_result.scalar_one_or_none()
+
+                if not invited_member:
+                    stats["skipped"] += 1
+                    continue
+
+                revoke_result = await self.revoke_team_invite(
+                    team_id=team_id,
+                    email=invited_member.email or normalized_email,
+                    db_session=db_session
+                )
+                if revoke_result.get("success"):
+                    stats["revoked"] += 1
+                else:
+                    stats["failed"] += 1
+
+            return {
+                "success": True,
+                "stats": stats,
+                "error": None
+            }
+
+        except Exception as e:
+            logger.error(f"扫描并清理到期成员失败: {e}")
+            return {
+                "success": False,
+                "stats": {
+                    "scanned": 0,
+                    "deleted": 0,
+                    "revoked": 0,
+                    "skipped": 0,
+                    "failed": 0
+                },
+                "error": f"扫描并清理到期成员失败: {str(e)}"
             }
 
     async def get_available_teams(

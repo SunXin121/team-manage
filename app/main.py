@@ -11,7 +11,7 @@ import asyncio
 import logging
 import random
 from pathlib import Path
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from contextlib import asynccontextmanager, suppress
 # 导入路由
@@ -19,6 +19,7 @@ from app.routes import redeem, auth, admin, api, user, warranty, payment
 from app.config import settings
 from app.database import init_db, close_db, AsyncSessionLocal
 from app.services.auth import auth_service
+from app.utils.time_utils import get_now
 
 # 获取项目根目录
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -68,6 +69,56 @@ async def _team_auto_sync_loop(
         except Exception as e:
             logger.error(f"Team 自动同步异常: {e}")
 
+
+async def _expired_member_cleanup_loop(
+    stop_event: asyncio.Event,
+    expire_days: int
+):
+    """每日凌晨执行：扫描邀请记录并清理 30 天到期成员。"""
+    from app.services.team import TeamService
+
+    team_service = TeamService()
+
+    while not stop_event.is_set():
+        now = get_now()
+        next_run = now.replace(hour=0, minute=0, second=0, microsecond=0) + timedelta(days=1)
+        wait_seconds = max(1, int((next_run - now).total_seconds()))
+
+        logger.info(f"到期成员清理任务下一次将在 {next_run.strftime('%Y-%m-%d %H:%M:%S')} 执行")
+
+        try:
+            await asyncio.wait_for(stop_event.wait(), timeout=wait_seconds)
+            break
+        except asyncio.TimeoutError:
+            pass
+
+        if stop_event.is_set():
+            break
+
+        try:
+            async with AsyncSessionLocal() as session:
+                result = await team_service.cleanup_expired_members_by_invite_records(
+                    db_session=session,
+                    expire_days=expire_days
+                )
+
+            if result.get("success"):
+                stats = result.get("stats", {})
+                logger.info(
+                    "到期成员清理完成: scanned=%s, deleted=%s, revoked=%s, skipped=%s, failed=%s",
+                    stats.get("scanned", 0),
+                    stats.get("deleted", 0),
+                    stats.get("revoked", 0),
+                    stats.get("skipped", 0),
+                    stats.get("failed", 0)
+                )
+            else:
+                logger.warning(f"到期成员清理失败: {result.get('error')}")
+        except asyncio.CancelledError:
+            raise
+        except Exception as e:
+            logger.error(f"到期成员清理任务异常: {e}")
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """
@@ -76,6 +127,8 @@ async def lifespan(app: FastAPI):
     """
     auto_sync_task = None
     auto_sync_stop_event = asyncio.Event()
+    expired_member_cleanup_task = None
+    expired_member_cleanup_stop_event = asyncio.Event()
 
     logger.info("系统正在启动，正在初始化数据库...")
     try:
@@ -118,6 +171,24 @@ async def lifespan(app: FastAPI):
     else:
         logger.info("Team 自动同步任务已禁用")
 
+    if settings.expired_member_cleanup_enabled:
+        expire_days = max(1, settings.expired_member_cleanup_days)
+        if expire_days != settings.expired_member_cleanup_days:
+            logger.warning(
+                "检测到到期成员清理天数配置异常，已自动修正为 %s 天",
+                expire_days
+            )
+
+        expired_member_cleanup_task = asyncio.create_task(
+            _expired_member_cleanup_loop(
+                expired_member_cleanup_stop_event,
+                expire_days
+            )
+        )
+        logger.info(f"到期成员清理任务已启动，每日凌晨执行，过期阈值 {expire_days} 天")
+    else:
+        logger.info("到期成员清理任务已禁用")
+
     yield
 
     if auto_sync_task:
@@ -128,6 +199,15 @@ async def lifespan(app: FastAPI):
             auto_sync_task.cancel()
             with suppress(asyncio.CancelledError):
                 await auto_sync_task
+
+    if expired_member_cleanup_task:
+        expired_member_cleanup_stop_event.set()
+        try:
+            await asyncio.wait_for(expired_member_cleanup_task, timeout=30)
+        except asyncio.TimeoutError:
+            expired_member_cleanup_task.cancel()
+            with suppress(asyncio.CancelledError):
+                await expired_member_cleanup_task
 
     # 关闭连接
     await close_db()
