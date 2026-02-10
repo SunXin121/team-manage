@@ -1712,7 +1712,9 @@ class TeamService:
         db_session: AsyncSession,
         page: int = 1,
         per_page: int = 20,
-        search: Optional[str] = None
+        search: Optional[str] = None,
+        status_filter: Optional[str] = None,
+        member_email: Optional[str] = None
     ) -> Dict[str, Any]:
         """
         获取所有 Team 列表 (用于管理员页面)
@@ -1722,6 +1724,8 @@ class TeamService:
             page: 页码
             per_page: 每页数量
             search: 搜索关键词
+            status_filter: 状态筛选
+            member_email: 成员邮箱筛选
 
         Returns:
             结果字典,包含 success, teams, total, total_pages, current_page, error
@@ -1743,12 +1747,26 @@ class TeamService:
                     )
                 )
 
-            # 3. 获取总数
+            # 3. 状态筛选
+            if status_filter and status_filter in ("active", "full", "expired", "banned", "error"):
+                stmt = stmt.where(Team.status == status_filter)
+
+            # 3.5 按成员邮箱筛选
+            if member_email:
+                member_email_filter = f"%{member_email.strip()}%"
+                member_team_ids = (
+                    select(TeamMember.team_id)
+                    .where(TeamMember.email.ilike(member_email_filter))
+                    .distinct()
+                )
+                stmt = stmt.where(Team.id.in_(member_team_ids))
+
+            # 4. 获取总数
             count_stmt = select(func.count()).select_from(stmt.subquery())
             count_result = await db_session.execute(count_stmt)
             total = count_result.scalar() or 0
 
-            # 4. 计算分页
+            # 5. 计算分页
             import math
             total_pages = math.ceil(total / per_page) if total > 0 else 1
             if page < 1:
@@ -1758,7 +1776,7 @@ class TeamService:
             
             offset = (page - 1) * per_page
 
-            # 5. 查询分页数据
+            # 6. 查询分页数据
             final_stmt = stmt.order_by(Team.created_at.desc()).limit(per_page).offset(offset)
             result = await db_session.execute(final_stmt)
             teams = result.scalars().all()
@@ -1766,6 +1784,17 @@ class TeamService:
             # 构建返回数据
             team_list = []
             for team in teams:
+                # 查询成员详情：已加入和待处理的成员数
+                member_stmt = select(
+                    TeamMember.status,
+                    func.count(TeamMember.id).label("count")
+                ).where(TeamMember.team_id == team.id).group_by(TeamMember.status)
+                member_result = await db_session.execute(member_stmt)
+                member_counts = dict(member_result.all())
+                
+                joined_count = member_counts.get("joined", 0)
+                invited_count = member_counts.get("invited", 0)
+                
                 team_list.append({
                     "id": team.id,
                     "email": team.email,
@@ -1776,6 +1805,8 @@ class TeamService:
                     "expires_at": team.expires_at.isoformat() if team.expires_at else None,
                     "current_members": team.current_members,
                     "max_members": team.max_members,
+                    "joined_count": joined_count,
+                    "invited_count": invited_count,
                     "status": team.status,
                     "last_sync": team.last_sync.isoformat() if team.last_sync else None,
                     "created_at": team.created_at.isoformat() if team.created_at else None

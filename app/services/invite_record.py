@@ -182,7 +182,7 @@ class InviteRecordService:
 
             count_stmt = select(func.count(InviteRecord.id))
             query_stmt = (
-                select(InviteRecord, Team.team_name, Team.status)
+                select(InviteRecord, Team.team_name, Team.status, Team.email.label("team_email"))
                 .join(Team, InviteRecord.team_id == Team.id, isouter=True)
             )
 
@@ -206,6 +206,7 @@ class InviteRecordService:
                 invite_record = row[0]
                 team_name = row[1]
                 team_status = row[2]
+                team_email = row[3]
                 records.append({
                     "id": invite_record.id,
                     "email": invite_record.email,
@@ -217,6 +218,7 @@ class InviteRecordService:
                     "trade_no": invite_record.trade_no,
                     "team_id": invite_record.team_id,
                     "team_name": team_name,
+                    "team_email": team_email,
                     "team_status": team_status,
                     "account_id": invite_record.account_id,
                     "is_warranty_redemption": bool(invite_record.is_warranty_redemption),

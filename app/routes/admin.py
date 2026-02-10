@@ -90,6 +90,8 @@ async def admin_dashboard(
     request: Request,
     page: int = 1,
     search: Optional[str] = None,
+    status_filter: Optional[str] = None,
+    member_email: Optional[str] = None,
     db: AsyncSession = Depends(get_db),
     current_user: dict = Depends(require_admin)
 ):
@@ -98,27 +100,24 @@ async def admin_dashboard(
     """
     try:
         from app.main import templates
-        logger.info(f"管理员访问控制台, search={search}, page={page}")
+        logger.info(f"管理员访问账号管理, search={search}, status_filter={status_filter}, page={page}")
 
         # 设置每页数量
         per_page = 20
         
         # 获取 Team 列表 (分页)
-        teams_result = await team_service.get_all_teams(db, page=page, per_page=per_page, search=search)
+        teams_result = await team_service.get_all_teams(db, page=page, per_page=per_page, search=search, status_filter=status_filter, member_email=member_email)
         
         # 获取统计信息 (可以使用专用统计方法优化)
         all_teams_result = await team_service.get_all_teams(db, page=1, per_page=10000)
         all_teams = all_teams_result.get("teams", [])
-        
-        all_codes_result = await redemption_service.get_all_codes(db, page=1, per_page=10000)
-        all_codes = all_codes_result.get("codes", [])
 
         # 计算统计数据
         stats = {
             "total_teams": len(all_teams),
             "available_teams": len([t for t in all_teams if t.get("status") == "active" and t.get("current_members", 0) < t.get("max_members", 6)]),
-            "total_codes": len(all_codes),
-            "used_codes": len([c for c in all_codes if c.get("status") == "used"])
+            "banned_teams": len([t for t in all_teams if t.get("status") == "banned"]),
+            "error_teams": len([t for t in all_teams if t.get("status") == "error"])
         }
 
         return templates.TemplateResponse(

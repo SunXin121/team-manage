@@ -115,7 +115,6 @@
                     <th>来源</th>
                     <th>订单号</th>
                     <th>Team ID</th>
-                    <th>Team 名称</th>
                     <th>邀请时间</th>
                 </tr>
             </thead>
@@ -138,7 +137,6 @@
                     </td>
                     <td>{{ record.order_no or '-' }}</td>
                     <td>{{ record.team_id or '-' }}</td>
-                    <td>{{ record.team_name or '-' }}</td>
                     <td>{{ record.invited_at or '-' }}</td>
                 </tr>
                 {% endfor %}

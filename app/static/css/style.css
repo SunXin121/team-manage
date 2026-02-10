@@ -1045,6 +1045,33 @@ code {
 
 .account-id { font-size: 0.8125rem; }
 .member-count { font-variant-numeric: tabular-nums; }
+
+/* Member seats with icons */
+.member-seats {
+    display: inline-flex;
+    gap: 4px;
+    align-items: center;
+    flex-wrap: wrap;
+    max-width: 140px;
+}
+.seat-icon {
+    color: var(--text-muted);
+    opacity: 0.6;
+    transition: color 0.2s, opacity 0.2s;
+}
+.seat-icon.joined {
+    color: var(--primary);
+    opacity: 1;
+}
+.seat-icon.pending {
+    color: var(--warning);
+    opacity: 0.8;
+}
+.seat-icon.empty {
+    color: var(--success);
+    opacity: 1;
+}
+
 .record-pagination-info { font-size: 0.875rem; color: var(--text-muted); }
 
 /* ========== Responsive ========== */
