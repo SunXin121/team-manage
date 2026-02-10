@@ -7,344 +7,289 @@
     <h2>系统设置</h2>
 </div>
 
-<!-- 代理配置 -->
-<div class="content-section">
-    <div class="section-header">
-        <h3>代理配置</h3>
+<div style="display: grid; gap: 20px;">
+    <!-- 代理设置 -->
+    <div class="content-section">
+        <div class="section-header" style="border-bottom: none; padding-bottom: 0;">
+            <h3 style="font-size: 1rem; font-weight: 600;">
+                <i data-lucide="globe" style="width: 18px; height: 18px; margin-right: 6px; vertical-align: -3px;"></i>
+                代理设置
+            </h3>
+        </div>
+        <form id="proxyForm" onsubmit="handleProxySubmit(event)" style="padding: 0 20px 20px 20px;">
+            <div class="form-group">
+                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                    <input type="checkbox" id="proxyEnabled" name="enabled"
+                        {{ 'checked' if proxy_enabled else '' }}
+                        style="width: 18px; height: 18px; accent-color: var(--apple-blue);"
+                        onchange="toggleProxyInput()">
+                    <span>启用代理</span>
+                </label>
+            </div>
+            <div class="form-group" id="proxyInputGroup" style="{{ '' if proxy_enabled else 'display: none;' }}">
+                <label>代理地址</label>
+                <input type="text" id="proxyAddress" name="proxy" class="form-control"
+                    value="{{ proxy or '' }}" placeholder="http://host:port 或 socks5://host:port">
+                <span style="font-size: 0.75rem; color: var(--text-muted); margin-top: 4px; display: block;">
+                    支持 http、https、socks5、socks5h 协议
+                </span>
+            </div>
+            <button type="submit" class="btn btn-primary" style="width: auto; padding: 8px 28px;">保存</button>
+        </form>
     </div>
 
-    <form id="proxyForm" class="settings-form">
-        <div class="form-group">
-            <label class="checkbox-label">
-                <input type="checkbox" id="proxyEnabled" name="enabled" {% if proxy_enabled %}checked{% endif %}>
-                <span>启用代理</span>
-            </label>
-            <p class="form-help">启用后,所有ChatGPT API请求将通过代理服务器</p>
+    <!-- 密码修改 -->
+    <div class="content-section">
+        <div class="section-header" style="border-bottom: none; padding-bottom: 0;">
+            <h3 style="font-size: 1rem; font-weight: 600;">
+                <i data-lucide="lock" style="width: 18px; height: 18px; margin-right: 6px; vertical-align: -3px;"></i>
+                修改密码
+            </h3>
         </div>
-
-        <div class="form-group">
-            <label for="proxyUrl">代理地址</label>
-            <input type="text" id="proxyUrl" name="proxy" value="{{ proxy or '' }}"
-                placeholder="http://127.0.0.1:7890, socks5://127.0.0.1:1080 或 socks5h://127.0.0.1:1080"
-                class="form-control">
-            <p class="form-help">支持HTTP、SOCKS5和SOCKS5H (远程DNS解析) 代理</p>
-        </div>
-
-        <button type="submit" class="btn btn-primary">保存代理配置</button>
-    </form>
-</div>
-
-<!-- 密码修改 -->
-<div class="content-section">
-    <div class="section-header">
-        <h3>修改密码</h3>
+        <form id="passwordForm" onsubmit="handlePasswordSubmit(event)" style="padding: 0 20px 20px 20px;">
+            <div class="form-group">
+                <label>当前密码</label>
+                <input type="password" id="currentPassword" name="current_password" class="form-control" required>
+            </div>
+            <div class="form-group">
+                <label>新密码</label>
+                <input type="password" id="newPassword" name="new_password" class="form-control" required
+                    minlength="6">
+            </div>
+            <div class="form-group">
+                <label>确认新密码</label>
+                <input type="password" id="confirmPassword" name="confirm_password" class="form-control" required
+                    minlength="6">
+            </div>
+            <button type="submit" class="btn btn-primary" style="width: auto; padding: 8px 28px;">修改密码</button>
+        </form>
     </div>
 
-    <form id="passwordForm" class="settings-form">
-        <div class="form-group">
-            <label for="oldPassword">旧密码</label>
-            <input type="password" id="oldPassword" name="old_password" required class="form-control"
-                placeholder="请输入当前密码">
+    <!-- 日志级别 -->
+    <div class="content-section">
+        <div class="section-header" style="border-bottom: none; padding-bottom: 0;">
+            <h3 style="font-size: 1rem; font-weight: 600;">
+                <i data-lucide="file-text" style="width: 18px; height: 18px; margin-right: 6px; vertical-align: -3px;"></i>
+                日志级别
+            </h3>
         </div>
-
-        <div class="form-group">
-            <label for="newPassword">新密码</label>
-            <input type="password" id="newPassword" name="new_password" required minlength="6" class="form-control"
-                placeholder="请输入新密码(至少6位)">
-        </div>
-
-        <div class="form-group">
-            <label for="confirmPassword">确认新密码</label>
-            <input type="password" id="confirmPassword" name="confirm_password" required minlength="6"
-                class="form-control" placeholder="请再次输入新密码">
-        </div>
-
-        <button type="submit" class="btn btn-primary">修改密码</button>
-        <p class="form-help">修改密码后需要重新登录</p>
-    </form>
-</div>
-
-<!-- 日志级别 -->
-<div class="content-section">
-    <div class="section-header">
-        <h3>日志级别</h3>
+        <form id="logLevelForm" onsubmit="handleLogLevelSubmit(event)" style="padding: 0 20px 20px 20px;">
+            <div class="form-group">
+                <label>日志级别</label>
+                <select id="logLevel" name="level" class="form-control">
+                    <option value="DEBUG" {{ 'selected' if log_level == 'DEBUG' else '' }}>DEBUG</option>
+                    <option value="INFO" {{ 'selected' if log_level == 'INFO' else '' }}>INFO</option>
+                    <option value="WARNING" {{ 'selected' if log_level == 'WARNING' else '' }}>WARNING</option>
+                    <option value="ERROR" {{ 'selected' if log_level == 'ERROR' else '' }}>ERROR</option>
+                </select>
+            </div>
+            <button type="submit" class="btn btn-primary" style="width: auto; padding: 8px 28px;">保存</button>
+        </form>
     </div>
 
-    <form id="logLevelForm" class="settings-form">
-        <div class="form-group">
-            <label for="logLevel">日志级别</label>
-            <select id="logLevel" name="level" class="form-control">
-                <option value="DEBUG" {% if log_level=='DEBUG' %}selected{% endif %}>DEBUG - 调试信息</option>
-                <option value="INFO" {% if log_level=='INFO' %}selected{% endif %}>INFO - 一般信息</option>
-                <option value="WARNING" {% if log_level=='WARNING' %}selected{% endif %}>WARNING - 警告信息</option>
-                <option value="ERROR" {% if log_level=='ERROR' %}selected{% endif %}>ERROR - 错误信息</option>
-                <option value="CRITICAL" {% if log_level=='CRITICAL' %}selected{% endif %}>CRITICAL - 严重错误</option>
-            </select>
-            <p class="form-help">调整系统日志的详细程度,DEBUG级别会记录最详细的信息</p>
+    <!-- 支付设置 -->
+    <div class="content-section">
+        <div class="section-header" style="border-bottom: none; padding-bottom: 0;">
+            <h3 style="font-size: 1rem; font-weight: 600;">
+                <i data-lucide="credit-card" style="width: 18px; height: 18px; margin-right: 6px; vertical-align: -3px;"></i>
+                支付设置
+            </h3>
         </div>
-
-        <button type="submit" class="btn btn-primary">保存日志级别</button>
-    </form>
-</div>
-
-<!-- 支付设置 -->
-<div class="content-section">
-    <div class="section-header">
-        <h3>支付设置</h3>
-    </div>
-
-    <form id="paymentForm" class="settings-form">
-        <!-- 支付方式开关 -->
-        <div class="form-group">
-            <label style="font-weight: 600; margin-bottom: 0.75rem; display: block;">支付方式</label>
-            <div style="display: flex; gap: 2rem; flex-wrap: wrap;">
-                <label class="checkbox-label">
-                    <input type="checkbox" id="alipayEnabled" name="alipay_enabled" {% if alipay_enabled %}checked{% endif %}>
+        <div style="padding: 0 20px 20px 20px;">
+            <!-- 支付方式开关 -->
+            <div style="display: flex; gap: 24px; margin-bottom: 20px;">
+                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                    <input type="checkbox" id="alipayEnabled" {{ 'checked' if alipay_enabled else '' }}
+                        style="width: 18px; height: 18px; accent-color: var(--apple-blue);"
+                        onchange="handlePaymentMethodsChange()">
                     <span>支付宝</span>
                 </label>
-                <label class="checkbox-label">
-                    <input type="checkbox" id="wxpayEnabled" name="wxpay_enabled" {% if wxpay_enabled %}checked{% endif %}>
+                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                    <input type="checkbox" id="wxpayEnabled" {{ 'checked' if wxpay_enabled else '' }}
+                        style="width: 18px; height: 18px; accent-color: var(--apple-blue);"
+                        onchange="handlePaymentMethodsChange()">
                     <span>微信支付</span>
                 </label>
             </div>
-            <p class="form-help">选择启用的支付方式，用户将在支付页面看到对应选项</p>
+
+            <!-- 码支付配置 -->
+            <form id="mapayForm" onsubmit="handleMapaySubmit(event)">
+                <div class="search-form-grid">
+                    <div class="form-group">
+                        <label>商户 ID</label>
+                        <input type="text" id="mapayId" name="mapay_id" class="form-control"
+                            value="{{ mapay_id or '' }}" placeholder="码支付商户 ID">
+                    </div>
+                    <div class="form-group">
+                        <label>通信密钥</label>
+                        <input type="password" id="mapayKey" name="mapay_key" class="form-control"
+                            value="{{ mapay_key or '' }}" placeholder="码支付通信密钥">
+                    </div>
+                    <div class="form-group">
+                        <label>API 地址</label>
+                        <input type="text" id="mapayUrl" name="mapay_url" class="form-control"
+                            value="{{ mapay_url or 'https://pay.yueuo.cn' }}" placeholder="https://pay.yueuo.cn">
+                    </div>
+                    <div class="form-group">
+                        <label>网站域名</label>
+                        <input type="text" id="mapayDomain" name="mapay_domain" class="form-control"
+                            value="{{ mapay_domain or '' }}" placeholder="例如: https://yourdomain.com">
+                    </div>
+                    <div class="form-group">
+                        <label>支付金额</label>
+                        <input type="text" id="mapayPrice" name="mapay_price" class="form-control"
+                            value="{{ mapay_price or '19.9' }}" placeholder="19.9">
+                    </div>
+                    <div class="form-group">
+                        <label>商品名称</label>
+                        <input type="text" id="mapayProductName" name="mapay_product_name" class="form-control"
+                            value="{{ mapay_product_name or 'GPT Team 会员' }}" placeholder="GPT Team 会员">
+                    </div>
+                </div>
+                <button type="submit" class="btn btn-primary"
+                    style="width: auto; padding: 8px 28px; margin-top: 4px;">保存支付配置</button>
+            </form>
         </div>
-
-        <hr style="border: none; border-top: 1px solid var(--border-base); margin: 1.5rem 0;">
-
-        <!-- 码支付配置 -->
-        <div class="form-group">
-            <label style="font-weight: 600; margin-bottom: 0.5rem; display: block;">码支付接口配置</label>
-            <p class="form-help" style="margin-bottom: 1rem;">请在码支付后台获取商户ID和通信密钥</p>
-        </div>
-
-        <div class="form-row" style="display: flex; gap: 20px;">
-            <div class="form-group" style="flex: 1;">
-                <label for="mapayId">商户ID</label>
-                <input type="text" id="mapayId" name="mapay_id" value="{{ mapay_id or '' }}"
-                    placeholder="请输入码支付商户ID" class="form-control">
-            </div>
-
-            <div class="form-group" style="flex: 1;">
-                <label for="mapayKey">通信密钥</label>
-                <input type="password" id="mapayKey" name="mapay_key" value="{{ mapay_key or '' }}"
-                    placeholder="请输入码支付通信密钥" class="form-control">
-            </div>
-        </div>
-
-        <div class="form-row" style="display: flex; gap: 20px;">
-            <div class="form-group" style="flex: 1;">
-                <label for="mapayUrl">API地址</label>
-                <input type="text" id="mapayUrl" name="mapay_url" value="{{ mapay_url or 'https://pay.yueuo.cn' }}"
-                    placeholder="https://pay.yueuo.cn" class="form-control">
-                <p class="form-help">码支付API接口地址</p>
-            </div>
-
-            <div class="form-group" style="flex: 1;">
-                <label for="mapayDomain">网站域名</label>
-                <input type="text" id="mapayDomain" name="mapay_domain" value="{{ mapay_domain or '' }}"
-                    placeholder="https://yourdomain.com" class="form-control">
-                <p class="form-help">用于生成支付回调地址</p>
-            </div>
-        </div>
-
-        <hr style="border: none; border-top: 1px solid var(--border-base); margin: 1.5rem 0;">
-
-        <!-- 商品配置 -->
-        <div class="form-row" style="display: flex; gap: 20px;">
-            <div class="form-group" style="flex: 1;">
-                <label for="mapayPrice">支付金额</label>
-                <input type="text" id="mapayPrice" name="mapay_price" value="{{ mapay_price or '19.9' }}"
-                    placeholder="19.9" class="form-control">
-                <p class="form-help">单位：元</p>
-            </div>
-
-            <div class="form-group" style="flex: 2;">
-                <label for="mapayProductName">商品名称</label>
-                <input type="text" id="mapayProductName" name="mapay_product_name" value="{{ mapay_product_name or 'GPT Team 会员' }}"
-                    placeholder="GPT Team 会员" class="form-control">
-                <p class="form-help">显示在支付页面的商品名称</p>
-            </div>
-        </div>
-
-        <button type="submit" class="btn btn-primary">保存支付设置</button>
-    </form>
+    </div>
 </div>
-{% endblock %}
-
-{% block extra_css %}
-<style>
-    .checkbox-label {
-        display: flex;
-        align-items: center;
-        cursor: pointer;
-        gap: 0.75rem;
-        margin-bottom: 0.5rem;
-    }
-
-    .form-help {
-        font-size: 0.8125rem;
-        color: var(--text-muted);
-        margin-top: 0.375rem;
-    }
-</style>
 {% endblock %}
 
 {% block extra_js %}
 <script>
-    // 代理配置表单
-    document.getElementById('proxyForm').addEventListener('submit', async (e) => {
-        e.preventDefault();
-
+    function toggleProxyInput() {
         const enabled = document.getElementById('proxyEnabled').checked;
-        const proxy = document.getElementById('proxyUrl').value.trim();
+        document.getElementById('proxyInputGroup').style.display = enabled ? '' : 'none';
+    }
 
-        // 验证
-        if (enabled && !proxy) {
-            showToast('请输入代理地址', 'error');
-            return;
-        }
+    async function handleProxySubmit(event) {
+        event.preventDefault();
+        const enabled = document.getElementById('proxyEnabled').checked;
+        const proxy = document.getElementById('proxyAddress').value.trim();
 
         try {
             const response = await fetch('/admin/settings/proxy', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ enabled, proxy })
             });
-
-            const data = await response.json();
-
-            if (response.ok && data.success) {
+            const result = await response.json();
+            if (response.ok && result.success) {
                 showToast('代理配置已保存', 'success');
             } else {
-                showToast(data.error || '保存失败', 'error');
+                showToast(result.error || '保存失败', 'error');
             }
         } catch (error) {
             showToast('网络错误', 'error');
         }
-    });
+    }
 
-    // 密码修改表单
-    document.getElementById('passwordForm').addEventListener('submit', async (e) => {
-        e.preventDefault();
-
-        const oldPassword = document.getElementById('oldPassword').value;
+    async function handlePasswordSubmit(event) {
+        event.preventDefault();
+        const currentPassword = document.getElementById('currentPassword').value;
         const newPassword = document.getElementById('newPassword').value;
         const confirmPassword = document.getElementById('confirmPassword').value;
-
-        // 验证
-        if (newPassword.length < 6) {
-            showToast('新密码至少6位', 'error');
-            return;
-        }
 
         if (newPassword !== confirmPassword) {
             showToast('两次输入的密码不一致', 'error');
             return;
         }
 
+        if (newPassword.length < 6) {
+            showToast('密码长度至少 6 位', 'error');
+            return;
+        }
+
         try {
             const response = await fetch('/auth/change-password', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    old_password: oldPassword,
+                    current_password: currentPassword,
                     new_password: newPassword
                 })
             });
-
-            const data = await response.json();
-
-            if (response.ok && data.success) {
-                showToast('密码修改成功,即将跳转到登录页', 'success');
-                setTimeout(() => {
-                    window.location.href = '/login';
-                }, 2000);
+            const result = await response.json();
+            if (response.ok && result.success) {
+                showToast('密码修改成功', 'success');
+                document.getElementById('passwordForm').reset();
             } else {
-                showToast(data.error || '修改失败', 'error');
+                showToast(result.error || '修改失败', 'error');
             }
         } catch (error) {
             showToast('网络错误', 'error');
         }
-    });
+    }
 
-    // 日志级别表单
-    document.getElementById('logLevelForm').addEventListener('submit', async (e) => {
-        e.preventDefault();
-
+    async function handleLogLevelSubmit(event) {
+        event.preventDefault();
         const level = document.getElementById('logLevel').value;
 
         try {
             const response = await fetch('/admin/settings/log-level', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ level })
             });
-
-            const data = await response.json();
-
-            if (response.ok && data.success) {
+            const result = await response.json();
+            if (response.ok && result.success) {
                 showToast('日志级别已保存', 'success');
             } else {
-                showToast(data.error || '保存失败', 'error');
+                showToast(result.error || '保存失败', 'error');
             }
         } catch (error) {
             showToast('网络错误', 'error');
         }
-    });
+    }
 
-    // 支付设置表单
-    document.getElementById('paymentForm').addEventListener('submit', async (e) => {
-        e.preventDefault();
-
-        const alipay_enabled = document.getElementById('alipayEnabled').checked;
-        const wxpay_enabled = document.getElementById('wxpayEnabled').checked;
-        const mapay_id = document.getElementById('mapayId').value.trim();
-        const mapay_key = document.getElementById('mapayKey').value.trim();
-        const mapay_url = document.getElementById('mapayUrl').value.trim();
-        const mapay_domain = document.getElementById('mapayDomain').value.trim();
-        const mapay_price = document.getElementById('mapayPrice').value.trim();
-        const mapay_product_name = document.getElementById('mapayProductName').value.trim();
+    async function handleMapaySubmit(event) {
+        event.preventDefault();
 
         try {
-            // 保存支付方式配置
-            const methodsResponse = await fetch('/admin/settings/payment-methods', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ alipay_enabled, wxpay_enabled })
-            });
-
-            // 保存码支付配置
-            const mapayResponse = await fetch('/admin/settings/mapay', {
+            const response = await fetch('/admin/settings/mapay', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    mapay_id,
-                    mapay_key,
-                    mapay_url,
-                    mapay_domain,
-                    mapay_price,
-                    mapay_product_name
+                    mapay_id: document.getElementById('mapayId').value.trim(),
+                    mapay_key: document.getElementById('mapayKey').value.trim(),
+                    mapay_url: document.getElementById('mapayUrl').value.trim(),
+                    mapay_domain: document.getElementById('mapayDomain').value.trim(),
+                    mapay_price: document.getElementById('mapayPrice').value.trim(),
+                    mapay_product_name: document.getElementById('mapayProductName').value.trim()
                 })
             });
-
-            const methodsData = await methodsResponse.json();
-            const mapayData = await mapayResponse.json();
-
-            if (methodsResponse.ok && mapayResponse.ok && methodsData.success && mapayData.success) {
-                showToast('支付设置已保存', 'success');
+            const result = await response.json();
+            if (response.ok && result.success) {
+                showToast('支付配置已保存', 'success');
             } else {
-                showToast(methodsData.error || mapayData.error || '保存失败', 'error');
+                showToast(result.error || '保存失败', 'error');
             }
         } catch (error) {
             showToast('网络错误', 'error');
         }
-    });
+    }
+
+    async function handlePaymentMethodsChange() {
+        const alipayEnabled = document.getElementById('alipayEnabled').checked;
+        const wxpayEnabled = document.getElementById('wxpayEnabled').checked;
+
+        try {
+            const response = await fetch('/admin/settings/payment-methods', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    alipay_enabled: alipayEnabled,
+                    wxpay_enabled: wxpayEnabled
+                })
+            });
+            const result = await response.json();
+            if (response.ok && result.success) {
+                showToast('支付方式已更新', 'success');
+            } else {
+                showToast(result.error || '保存失败', 'error');
+            }
+        } catch (error) {
+            showToast('网络错误', 'error');
+        }
+    }
 </script>
 {% endblock %}

@@ -6,27 +6,26 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}GPT Team 管理系统{% endblock %}</title>
     <link rel="stylesheet" href="{{ url_for('static', path='/css/style.css') }}">
-    <!-- Lucide Icons -->
     <script src="https://unpkg.com/lucide@latest"></script>
     {% block extra_css %}{% endblock %}
 </head>
 
-<body class="bg-gray-50 text-slate-900">
+<body>
     {% if user %}
-    <!-- 导航栏 -->
+    <!-- 导航栏 - Apple frosted glass -->
     <nav class="navbar">
         <div class="navbar-container">
             <div class="navbar-left">
                 <button class="mobile-menu-toggle" onclick="toggleSidebar()">
-                    <i data-lucide="menu"></i>
+                    <i data-lucide="menu" style="width: 20px; height: 20px;"></i>
                 </button>
                 <div class="navbar-brand">
-                    <h1>GPT Team 管理系统</h1>
+                    <h1>GPT Team</h1>
                 </div>
             </div>
             <div class="navbar-menu">
                 <span class="navbar-user">管理员</span>
-                <button onclick="logout()" class="btn btn-secondary">登出</button>
+                <button onclick="logout()" class="btn btn-secondary btn-sm">登出</button>
             </div>
         </div>
     </nav>
@@ -41,38 +40,38 @@
             <ul class="sidebar-menu">
                 <li class="menu-item {% if active_page == 'dashboard' %}active{% endif %}">
                     <a href="/admin">
-                        <span class="menu-icon" data-lucide="layout-dashboard"></span>
+                        <span class="menu-icon"><i data-lucide="layout-dashboard" style="width: 18px; height: 18px;"></i></span>
                         <span class="menu-text">控制台</span>
                     </a>
                 </li>
                 <li class="menu-item {% if active_page == 'codes' %}active{% endif %}">
                     <a href="/admin/codes">
-                        <span class="menu-icon" data-lucide="ticket"></span>
+                        <span class="menu-icon"><i data-lucide="ticket" style="width: 18px; height: 18px;"></i></span>
                         <span class="menu-text">兑换码管理</span>
                     </a>
                 </li>
                 <li class="menu-item {% if active_page == 'invite_records' %}active{% endif %}">
                     <a href="/admin/invite-records">
-                        <span class="menu-icon" data-lucide="file-text"></span>
+                        <span class="menu-icon"><i data-lucide="file-text" style="width: 18px; height: 18px;"></i></span>
                         <span class="menu-text">邀请记录</span>
                     </a>
                 </li>
                 <li class="menu-item {% if active_page == 'settings' %}active{% endif %}">
                     <a href="/admin/settings">
-                        <span class="menu-icon" data-lucide="settings"></span>
+                        <span class="menu-icon"><i data-lucide="settings" style="width: 18px; height: 18px;"></i></span>
                         <span class="menu-text">系统设置</span>
                     </a>
                 </li>
             </ul>
         </aside>
 
-        <!-- 主内容区 -->
+        <!-- 主内容 -->
         <main class="main-content">
             {% block content %}{% endblock %}
         </main>
     </div>
     {% else %}
-    <!-- 未登录时的内容 -->
+    <!-- 未登录 -->
     <div class="auth-container">
         {% block auth_content %}{% endblock %}
     </div>
@@ -152,28 +151,25 @@
                             <textarea name="batchContent" class="form-control" rows="8" placeholder="一行一个 AT Token..."
                                 required></textarea>
                         </div>
-                        <div id="batchProgressContainer" style="display: none; margin-bottom: 1.5rem;">
-                            <div class="progress-info"
-                                style="display: flex; justify-content: space-between; margin-bottom: 0.5rem; font-size: 0.875rem;">
+                        <div id="batchProgressContainer" style="display: none; margin-bottom: 24px;">
+                            <div style="display: flex; justify-content: space-between; margin-bottom: 6px; font-size: 0.8125rem; color: var(--text-muted);">
                                 <span id="batchProgressStage">正在准备...</span>
                                 <span id="batchProgressPercent">0%</span>
                             </div>
-                            <div class="progress-bar-bg"
-                                style="width: 100%; height: 8px; background: rgba(255,255,255,0.05); border-radius: 4px; overflow: hidden;">
+                            <div style="width: 100%; height: 4px; background: rgba(0,0,0,0.06); border-radius: 2px; overflow: hidden;">
                                 <div id="batchProgressBar"
-                                    style="width: 0%; height: 100%; background: linear-gradient(90deg, var(--primary), var(--accent)); transition: width 0.3s ease;">
+                                    style="width: 0%; height: 100%; background: var(--apple-blue); transition: width 0.3s ease; border-radius: 2px;">
                                 </div>
                             </div>
                             <div id="batchProgressStats"
-                                style="margin-top: 0.5rem; font-size: 0.75rem; color: var(--text-dim); display: flex; gap: 1rem;">
+                                style="margin-top: 8px; font-size: 0.75rem; color: var(--text-muted); display: flex; gap: 16px;">
                                 <span>成功: <span id="batchSuccessCount" class="text-success">0</span></span>
                                 <span>失败: <span id="batchFailedCount" class="text-danger">0</span></span>
                             </div>
                         </div>
-                        <div id="batchResultsContainer" style="display: none; margin-bottom: 1rem;">
-                            <div
-                                style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
-                                <h4 style="margin: 0;">导入详情</h4>
+                        <div id="batchResultsContainer" style="display: none; margin-bottom: 16px;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                                <h4 style="margin: 0; font-size: 0.9375rem; font-weight: 600;">导入详情</h4>
                                 <small id="batchFinalSummary" class="text-muted"></small>
                             </div>
                             <div id="batchResults"></div>
@@ -213,8 +209,8 @@
                                 max="3650">
                         </div>
                         <div class="form-group">
-                            <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
-                                <input type="checkbox" name="hasWarranty" value="true" style="width: auto; margin: 0;"
+                            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                                <input type="checkbox" name="hasWarranty" value="true" style="width: 18px; height: 18px; accent-color: var(--apple-blue);"
                                     onchange="toggleWarrantyDays(this, 'single-warranty-days-group')">
                                 <span>质保兑换码 (可重复使用)</span>
                             </label>
@@ -230,7 +226,7 @@
                         <h4>生成成功</h4>
                         <div class="code-display">
                             <code id="generatedCode"></code>
-                            <button onclick="copyCode()" class="btn btn-sm btn-secondary">复制</button>
+                            <button onclick="copyCode()" class="btn btn-sm btn-secondary" style="width: auto; padding: 6px 14px;">复制</button>
                         </div>
                     </div>
                 </div>
@@ -248,8 +244,8 @@
                                 max="3650">
                         </div>
                         <div class="form-group">
-                            <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
-                                <input type="checkbox" name="hasWarranty" value="true" style="width: auto; margin: 0;"
+                            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                                <input type="checkbox" name="hasWarranty" value="true" style="width: 18px; height: 18px; accent-color: var(--apple-blue);"
                                     onchange="toggleWarrantyDays(this, 'batch-warranty-days-group')">
                                 <span>质保兑换码 (可重复使用)</span>
                             </label>
@@ -263,11 +259,13 @@
                     </form>
                     <div id="batchResult" class="result-box" style="display: none;">
                         <h4>批量生成成功</h4>
-                        <p>成功生成 <strong id="batchTotal">0</strong> 个兑换码</p>
+                        <p style="font-size: 0.875rem; color: var(--text-muted); margin-bottom: 8px;">成功生成 <strong id="batchTotal">0</strong> 个兑换码</p>
                         <textarea id="batchCodes" readonly rows="5" class="form-control"
                             style="margin: 10px 0;"></textarea>
-                        <button onclick="copyBatchCodes()" class="btn btn-sm btn-secondary">复制全部</button>
-                        <button onclick="downloadCodes()" class="btn btn-sm btn-secondary">下载</button>
+                        <div style="display: flex; gap: 8px;">
+                            <button onclick="copyBatchCodes()" class="btn btn-sm btn-secondary" style="width: auto;">复制全部</button>
+                            <button onclick="downloadCodes()" class="btn btn-sm btn-secondary" style="width: auto;">下载</button>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -280,30 +278,29 @@
             <div class="modal-header">
                 <div>
                     <h3 id="modalTeamName">Team 成员管理</h3>
-                    <small id="modalTeamEmail" class="text-muted" style="display: block; margin-top: 4px;"></small>
+                    <small id="modalTeamEmail" class="text-muted" style="display: block; margin-top: 4px; font-size: 0.8125rem;"></small>
                 </div>
                 <button class="modal-close" onclick="hideModal('manageMembersModal')">&times;</button>
             </div>
             <div class="modal-body">
-                <!-- 添加成员表单 -->
-                <div class="content-section"
-                    style="padding: 1.25rem; margin-bottom: 1.5rem; background: rgba(255,255,255,0.03);">
+                <!-- 添加成员 -->
+                <div style="padding: 20px; margin-bottom: 20px; background: var(--apple-gray); border-radius: var(--radius-md);">
                     <form id="addMemberForm" onsubmit="handleAddMember(event)"
-                        style="display: flex; gap: 1rem; align-items: flex-end;">
+                        style="display: flex; gap: 12px; align-items: flex-end;">
                         <div class="form-group" style="flex: 1; margin-bottom: 0;">
                             <label for="memberEmail">新增成员邮箱</label>
                             <input type="email" id="memberEmail" name="email" class="form-control"
                                 placeholder="user@example.com" required>
                         </div>
-                        <button type="submit" class="btn btn-primary" id="addMemberSubmitBtn">
-                            <i data-lucide="user-plus"></i> 添加
+                        <button type="submit" class="btn btn-primary" id="addMemberSubmitBtn" style="width: auto; padding: 10px 20px;">
+                            添加
                         </button>
                     </form>
                 </div>
 
-                <!-- 已加入成员 -->
-                <div class="content-section" style="margin-bottom: 1.5rem;">
-                    <h4 style="margin-bottom: 1rem; color: var(--success);">已加入成员</h4>
+                <!-- 已加入 -->
+                <div style="margin-bottom: 20px;">
+                    <h4 style="margin-bottom: 12px; color: var(--success); font-size: 0.9375rem; font-weight: 600;">已加入成员</h4>
                     <div class="table-container" style="max-height: 250px; overflow-y: auto; margin: 0;">
                         <table class="data-table">
                             <thead>
@@ -314,16 +311,14 @@
                                     <th style="text-align: right; width: 100px;">操作</th>
                                 </tr>
                             </thead>
-                            <tbody id="modalJoinedMembersTableBody">
-                                <!-- 动态加载内容 -->
-                            </tbody>
+                            <tbody id="modalJoinedMembersTableBody"></tbody>
                         </table>
                     </div>
                 </div>
 
-                <!-- 待加入成员 -->
-                <div class="content-section" style="margin: 0;">
-                    <h4 style="margin-bottom: 1rem; color: var(--warning);">待加入成员 (邀请中)</h4>
+                <!-- 待加入 -->
+                <div>
+                    <h4 style="margin-bottom: 12px; color: var(--warning); font-size: 0.9375rem; font-weight: 600;">待加入成员 (邀请中)</h4>
                     <div class="table-container" style="max-height: 250px; overflow-y: auto; margin: 0;">
                         <table class="data-table">
                             <thead>
@@ -334,15 +329,14 @@
                                     <th style="text-align: right; width: 100px;">操作</th>
                                 </tr>
                             </thead>
-                            <tbody id="modalInvitedMembersTableBody">
-                                <!-- 动态加载内容 -->
-                            </tbody>
+                            <tbody id="modalInvitedMembersTableBody"></tbody>
                         </table>
                     </div>
                 </div>
             </div>
         </div>
     </div>
+
     <div id="toast" class="toast"></div>
 
     <script src="{{ url_for('static', path='/js/main.js') }}"></script>

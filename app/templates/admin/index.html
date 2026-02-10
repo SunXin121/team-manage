@@ -10,28 +10,28 @@
 <!-- 统计卡片 -->
 <div class="stats-container">
     <div class="stat-card">
-        <div class="stat-icon"><i data-lucide="users"></i></div>
+        <div class="stat-icon"><i data-lucide="users" style="width: 20px; height: 20px;"></i></div>
         <div class="stat-info-group">
             <div class="stat-value">{{ stats.total_teams }}</div>
             <div class="stat-label">Team 总数</div>
         </div>
     </div>
     <div class="stat-card stat-success">
-        <div class="stat-icon"><i data-lucide="check-circle"></i></div>
+        <div class="stat-icon"><i data-lucide="check-circle" style="width: 20px; height: 20px;"></i></div>
         <div class="stat-info-group">
             <div class="stat-value">{{ stats.available_teams }}</div>
             <div class="stat-label">可用 Team</div>
         </div>
     </div>
     <div class="stat-card stat-info">
-        <div class="stat-icon"><i data-lucide="ticket"></i></div>
+        <div class="stat-icon"><i data-lucide="ticket" style="width: 20px; height: 20px;"></i></div>
         <div class="stat-info-group">
             <div class="stat-value">{{ stats.total_codes }}</div>
             <div class="stat-label">兑换码总数</div>
         </div>
     </div>
     <div class="stat-card stat-warning">
-        <div class="stat-icon"><i data-lucide="clipboard-list"></i></div>
+        <div class="stat-icon"><i data-lucide="clipboard-list" style="width: 20px; height: 20px;"></i></div>
         <div class="stat-info-group">
             <div class="stat-value">{{ stats.used_codes }}</div>
             <div class="stat-label">已使用兑换码</div>
@@ -50,14 +50,14 @@
                     <input type="text" name="search" value="{{ search or '' }}" placeholder="搜索邮箱/Account ID..."
                         style="width: 200px;">
                     {% if search %}
-                    <a href="/admin" title="清除搜索">
+                    <a href="/admin" title="清除搜索" style="display: flex; color: var(--text-dim);">
                         <i data-lucide="x-circle" style="width: 14px; height: 14px;"></i>
                     </a>
                     {% endif %}
                 </div>
             </form>
             <button onclick="showModal('importTeamModal')" class="btn btn-primary">
-                <i data-lucide="plus-circle" style="width: 16px; height: 16px;"></i> 导入 Team
+                <i data-lucide="plus" style="width: 16px; height: 16px;"></i> 导入 Team
             </button>
         </div>
     </div>
@@ -86,9 +86,7 @@
                     <td><span class="text-muted small">{{ team.account_id or '-' }}</span></td>
                     <td>{{ team.team_name or '-' }}</td>
                     <td>
-                        <span class="member-count">
-                            {{ team.current_members }}/{{ team.max_members }}
-                        </span>
+                        <span class="member-count">{{ team.current_members }}/{{ team.max_members }}</span>
                     </td>
                     <td>{{ team.subscription_plan or '-' }}</td>
                     <td>
@@ -100,38 +98,31 @@
                     </td>
                     <td>
                         <span class="status-badge status-{{ team.status }}">
-                            {% if team.status == 'active' %}
-                            可用
-                            {% elif team.status == 'full' %}
-                            已满
-                            {% elif team.status == 'expired' %}
-                            已过期
-                            {% elif team.status == 'banned' %}
-                            已封禁
-                            {% elif team.status == 'error' %}
-                            异常
-                            {% else %}
-                            未知
-                            {% endif %}
+                            {% if team.status == 'active' %}可用
+                            {% elif team.status == 'full' %}已满
+                            {% elif team.status == 'expired' %}已过期
+                            {% elif team.status == 'banned' %}已封禁
+                            {% elif team.status == 'error' %}异常
+                            {% else %}未知{% endif %}
                         </span>
                     </td>
                     <td>
                         <div class="action-buttons">
                             <button class="btn btn-sm btn-icon btn-minimal btn-info btn-view-members"
                                 data-id="{{ team.id }}" data-email="{{ team.email }}" title="查看成员">
-                                <i data-lucide="users" style="width: 16px; height: 16px;"></i>
+                                <i data-lucide="users" style="width: 15px; height: 15px;"></i>
                             </button>
                             <button class="btn btn-sm btn-icon btn-minimal btn-primary btn-edit-team"
                                 data-id="{{ team.id }}" title="编辑">
-                                <i data-lucide="edit-3" style="width: 16px; height: 16px;"></i>
+                                <i data-lucide="edit-3" style="width: 15px; height: 15px;"></i>
                             </button>
                             <button class="btn btn-sm btn-icon btn-minimal btn-secondary btn-refresh-team"
                                 data-id="{{ team.id }}" title="刷新">
-                                <i data-lucide="refresh-cw" style="width: 16px; height: 16px;"></i>
+                                <i data-lucide="refresh-cw" style="width: 15px; height: 15px;"></i>
                             </button>
                             <button class="btn btn-sm btn-icon btn-minimal btn-danger btn-delete-team"
                                 data-id="{{ team.id }}" data-email="{{ team.email }}" title="删除">
-                                <i data-lucide="trash-2" style="width: 16px; height: 16px;"></i>
+                                <i data-lucide="trash-2" style="width: 15px; height: 15px;"></i>
                             </button>
                         </div>
                     </td>
@@ -145,28 +136,25 @@
     {% if pagination and pagination.total_pages > 1 %}
     <div class="pagination">
         {% set search_param = '&search=' + search if search else '' %}
-
         {% if pagination.current_page > 1 %}
         <a href="?page=1{{ search_param }}" class="btn btn-sm btn-secondary">首页</a>
         <a href="?page={{ pagination.current_page - 1 }}{{ search_param }}" class="btn btn-sm btn-secondary">
             <i data-lucide="chevron-left" style="width: 14px; height: 14px;"></i>
         </a>
         {% endif %}
-
         <span class="pagination-info">第 {{ pagination.current_page }} / {{ pagination.total_pages }} 页</span>
-
-        {% if pagination.current_page < pagination.total_pages %} <a
-            href="?page={{ pagination.current_page + 1 }}{{ search_param }}" class="btn btn-sm btn-secondary">
+        {% if pagination.current_page < pagination.total_pages %}
+        <a href="?page={{ pagination.current_page + 1 }}{{ search_param }}" class="btn btn-sm btn-secondary">
             <i data-lucide="chevron-right" style="width: 14px; height: 14px;"></i>
-            </a>
-            <a href="?page={{ pagination.total_pages }}{{ search_param }}" class="btn btn-sm btn-secondary">末页</a>
-            {% endif %}
+        </a>
+        <a href="?page={{ pagination.total_pages }}{{ search_param }}" class="btn btn-sm btn-secondary">末页</a>
+        {% endif %}
     </div>
     {% endif %}
     {% else %}
     <div class="empty-state">
         <p>暂无 Team 数据</p>
-        <button onclick="showModal('importTeamModal')" class="btn btn-primary">立即导入</button>
+        <button onclick="showModal('importTeamModal')" class="btn btn-primary" style="width: auto; padding: 8px 24px;">立即导入</button>
     </div>
     {% endif %}
 </div>
@@ -211,8 +199,7 @@
                 </div>
                 <div class="form-group">
                     <label>最大成员数 <span class="required">*</span></label>
-                    <input type="number" id="edit-team-max-members" name="maxMembers" class="form-control" min="1"
-                        max="100" required>
+                    <input type="number" id="edit-team-max-members" name="maxMembers" class="form-control" min="1" max="100" required>
                 </div>
                 <div class="form-group">
                     <label>状态 <span class="required">*</span></label>
@@ -231,60 +218,36 @@
 </div>
 {% endblock %}
 
-{% block extra_css %}
-{% endblock %}
-
 {% block extra_js %}
 <script>
     document.addEventListener('DOMContentLoaded', () => {
-        // 绑定查看成员按钮
         document.querySelectorAll('.btn-view-members').forEach(btn => {
             btn.addEventListener('click', () => {
-                const id = btn.getAttribute('data-id');
-                const email = btn.getAttribute('data-email');
-                viewMembers(id, email);
+                viewMembers(btn.getAttribute('data-id'), btn.getAttribute('data-email'));
             });
         });
 
-        // 绑定刷新按钮
         document.querySelectorAll('.btn-refresh-team').forEach(btn => {
-            btn.addEventListener('click', () => {
-                const id = btn.getAttribute('data-id');
-                refreshTeam(id);
-            });
+            btn.addEventListener('click', () => refreshTeam(btn.getAttribute('data-id')));
         });
 
-        // 绑定删除按钮
         document.querySelectorAll('.btn-delete-team').forEach(btn => {
             btn.addEventListener('click', () => {
-                const id = btn.getAttribute('data-id');
-                const email = btn.getAttribute('data-email');
-                deleteTeam(id, email);
+                deleteTeam(btn.getAttribute('data-id'), btn.getAttribute('data-email'));
             });
         });
 
-        // 绑定编辑按钮
         document.querySelectorAll('.btn-edit-team').forEach(btn => {
-            btn.addEventListener('click', () => {
-                const id = btn.getAttribute('data-id');
-                editTeam(id);
-            });
+            btn.addEventListener('click', () => editTeam(btn.getAttribute('data-id')));
         });
     });
 
     async function refreshTeam(teamId) {
-        if (!confirm('确定要刷新此 Team 的信息吗?')) {
-            return;
-        }
-
+        if (!confirm('确定要刷新此 Team 的信息吗?')) return;
         try {
             showToast('正在刷新...', 'info');
-            const response = await fetch(`/api/teams/${teamId}/refresh`, {
-                method: 'GET'
-            });
-
+            const response = await fetch(`/api/teams/${teamId}/refresh`, { method: 'GET' });
             const data = await response.json();
-
             if (response.ok && data.success) {
                 showToast('刷新成功', 'success');
                 setTimeout(() => location.reload(), 1000);
@@ -297,18 +260,11 @@
     }
 
     async function deleteTeam(teamId, email) {
-        if (!confirm(`确定要删除 Team "${email}" 吗?\n\n此操作不可恢复!`)) {
-            return;
-        }
-
+        if (!confirm(`确定要删除 Team "${email}" 吗?\n\n此操作不可恢复!`)) return;
         try {
             showToast('正在删除...', 'info');
-            const response = await fetch(`/admin/teams/${teamId}/delete`, {
-                method: 'POST'
-            });
-
+            const response = await fetch(`/admin/teams/${teamId}/delete`, { method: 'POST' });
             const data = await response.json();
-
             if (response.ok && data.success) {
                 showToast('删除成功', 'success');
                 setTimeout(() => location.reload(), 1000);
@@ -319,11 +275,11 @@
             showToast('网络错误', 'error');
         }
     }
+
     async function editTeam(teamId) {
         try {
             const response = await fetch(`/admin/teams/${teamId}/info`);
             const data = await response.json();
-
             if (response.ok && data.success) {
                 const team = data.team;
                 document.getElementById('edit-team-id').value = team.id;
@@ -363,14 +319,10 @@
         try {
             const response = await fetch(`/admin/teams/${teamId}/update`, {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload)
             });
-
             const result = await response.json();
-
             if (response.ok && result.success) {
                 showToast('更新成功', 'success');
                 hideModal('editTeamModal');

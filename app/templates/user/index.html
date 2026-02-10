@@ -6,110 +6,19 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>GPT Team - 加入 ChatGPT Team</title>
     <link rel="stylesheet" href="{{ url_for('static', path='/css/user.css') }}">
-    <!-- Lucide Icons -->
     <script src="https://unpkg.com/lucide@latest"></script>
-    <style>
-        .method-selector {
-            display: flex;
-            gap: 12px;
-            margin-bottom: 25px;
-        }
-
-        .method-option {
-            flex: 1;
-            padding: 16px 12px;
-            border: 2px solid var(--border-base);
-            border-radius: 12px;
-            cursor: pointer;
-            text-align: center;
-            transition: all 0.3s;
-            background: var(--bg-primary);
-        }
-
-        .method-option:hover {
-            border-color: var(--primary);
-            transform: translateY(-2px);
-        }
-
-        .method-option.selected {
-            border-color: var(--primary);
-            background: var(--primary-soft);
-        }
-
-        .method-option .method-icon {
-            font-size: 28px;
-            margin-bottom: 8px;
-            display: block;
-        }
-
-        .method-option.alipay .method-icon {
-            color: #1677ff;
-        }
-
-        .method-option.wxpay .method-icon {
-            color: #07c160;
-        }
-
-        .method-option.redeem .method-icon {
-            color: var(--primary);
-        }
-
-        .method-option .method-name {
-            font-weight: 600;
-            color: var(--text-primary);
-            font-size: 0.95rem;
-        }
-
-        .method-option .method-desc {
-            font-size: 0.8rem;
-            color: var(--text-secondary);
-            margin-top: 4px;
-        }
-
-        .payment-form,
-        .redeem-form {
-            display: none;
-        }
-
-        .payment-form.active,
-        .redeem-form.active {
-            display: block;
-        }
-
-        @keyframes spin {
-            to {
-                transform: rotate(360deg);
-            }
-        }
-
-        .warranty-section {
-            margin-top: 30px;
-            padding-top: 25px;
-            border-top: 1px solid var(--border-base);
-        }
-
-        .warranty-section h3 {
-            font-size: 1rem;
-            margin-bottom: 12px;
-            color: var(--text-primary);
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-
-    </style>
 </head>
 
 <body>
     <div class="container">
+        <!-- Header -->
         <div class="header">
             <h1>加入 ChatGPT Team</h1>
             <p class="subtitle">选择支付方式或使用兑换码</p>
             {% if remaining_spots is not none %}
-            <div class="spots-badge"
-                style="display: inline-flex; align-items: center; gap: 6px; background: var(--primary-soft); padding: 6px 12px; border-radius: 20px; font-size: 0.875rem; color: var(--primary); margin-top: 10px; border: 1px solid var(--border-base);">
-                <i data-lucide="users" style="width: 14px; height: 14px;"></i> 剩余车位: {{ remaining_spots }}
+            <div class="spots-badge">
+                <i data-lucide="users" style="width: 14px; height: 14px;"></i>
+                剩余车位: {{ remaining_spots }}
             </div>
             {% endif %}
         </div>
@@ -120,18 +29,18 @@
             <div class="method-selector">
                 {% if alipay_enabled %}
                 <div class="method-option alipay {% if alipay_enabled %}selected{% endif %}" data-method="alipay">
-                    <span class="method-icon"><i data-lucide="smartphone"></i></span>
+                    <span class="method-icon"><i data-lucide="smartphone" style="width: 24px; height: 24px;"></i></span>
                     <span class="method-name">支付宝</span>
                 </div>
                 {% endif %}
                 {% if wxpay_enabled %}
                 <div class="method-option wxpay {% if not alipay_enabled %}selected{% endif %}" data-method="wxpay">
-                    <span class="method-icon"><i data-lucide="message-circle"></i></span>
+                    <span class="method-icon"><i data-lucide="message-circle" style="width: 24px; height: 24px;"></i></span>
                     <span class="method-name">微信支付</span>
                 </div>
                 {% endif %}
                 <div class="method-option redeem {% if not alipay_enabled and not wxpay_enabled %}selected{% endif %}" data-method="redeem">
-                    <span class="method-icon"><i data-lucide="ticket"></i></span>
+                    <span class="method-icon"><i data-lucide="ticket" style="width: 24px; height: 24px;"></i></span>
                     <span class="method-name">兑换码</span>
                 </div>
             </div>
@@ -145,13 +54,10 @@
                             class="form-input">
                         <p class="form-help">邀请将发送到此邮箱，请确保填写正确</p>
                     </div>
-
-                    <button type="submit" class="btn btn-primary" id="payBtn" style="width: 100%;">
-                        <i data-lucide="credit-card"></i> 立即支付 ¥{{ price }}
+                    <button type="submit" class="btn btn-primary" id="payBtn">
+                        立即支付 ¥{{ price }}
                     </button>
                 </form>
-
-
             </div>
 
             <!-- 兑换码表单 -->
@@ -163,81 +69,68 @@
                             class="form-input">
                         <p class="form-help">邀请将发送到此邮箱</p>
                     </div>
-
                     <div class="form-group">
                         <label for="code">兑换码</label>
                         <input type="text" id="code" name="code" required placeholder="请输入兑换码" class="form-input">
                     </div>
-
-                    <button type="submit" class="btn btn-primary" id="redeemBtn" style="width: 100%;">
-                        <i data-lucide="check-circle"></i> 立即兑换
+                    <button type="submit" class="btn btn-primary" id="redeemBtn">
+                        立即兑换
                     </button>
                 </form>
             </div>
         </div>
 
-        <!-- 质保查询卡片 (独立显示) -->
-        <div id="warrantyCard" class="card" style="margin-top: 10px;">
-            <h3 style="font-size: 1rem; margin-bottom: 12px; color: var(--text-primary); display: flex; align-items: center; gap: 8px;">
-                <i data-lucide="shield" style="width: 18px; height: 18px;"></i>
+        <!-- 质保查询卡片 -->
+        <div id="warrantyCard" class="card" style="margin-top: 16px;">
+            <h3 style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px;">
+                <i data-lucide="shield" style="width: 18px; height: 18px; color: var(--apple-blue);"></i>
                 质保查询
             </h3>
-            <p class="form-help" style="margin-bottom: 12px;">
+            <p class="form-help" style="margin-bottom: 16px;">
                 质保兑换码在 Team 被封后可在质保期内重复使用
             </p>
             <div class="form-group" style="margin-bottom: 12px;">
                 <input type="text" id="warrantyInput" placeholder="输入兑换码或邮箱查询" class="form-input">
             </div>
-            <button type="button" class="btn btn-secondary" id="checkWarrantyBtn" onclick="checkWarranty()"
-                style="width: 100%;">
-                <i data-lucide="search"></i> 查询质保状态
+            <button type="button" class="btn btn-secondary" id="checkWarrantyBtn" onclick="checkWarranty()">
+                查询质保状态
             </button>
         </div>
 
         <!-- 质保查询结果 -->
-        <div id="warrantyResult" class="card" style="display: none;">
+        <div id="warrantyResult" class="card" style="display: none; margin-top: 16px;">
             <h2>质保查询结果</h2>
             <div id="warrantyContent"></div>
-            <div class="actions" style="margin-top: 20px;">
-                <button onclick="hideWarrantyResult()" class="btn btn-secondary" style="width: 100%;">返回</button>
+            <div style="margin-top: 24px;">
+                <button onclick="hideWarrantyResult()" class="btn btn-secondary">返回</button>
             </div>
         </div>
 
         <!-- 兑换结果 -->
-        <div id="resultCard" class="card" style="display: none;">
+        <div id="resultCard" class="card" style="display: none; margin-top: 16px;">
             <div id="resultContent"></div>
         </div>
     </div>
 
-    <!-- Toast提示 -->
+    <!-- Toast -->
     <div id="toast" class="toast"></div>
 
     <script>
-        // 初始化 Lucide 图标
         if (window.lucide) lucide.createIcons();
 
-        // 支付方式配置
         const alipayEnabled = {{ 'true' if alipay_enabled else 'false' }};
         const wxpayEnabled = {{ 'true' if wxpay_enabled else 'false' }};
-
-        // 全局变量 - 根据可用支付方式设置默认值
         let selectedMethod = alipayEnabled ? 'alipay' : (wxpayEnabled ? 'wxpay' : 'redeem');
 
-
-        // 检查URL参数，处理支付成功跳转回来的情况
+        // 检查支付成功回调
         (function checkPaymentSuccess() {
             const urlParams = new URLSearchParams(window.location.search);
             const paymentSuccess = urlParams.get('payment_success');
             const orderNo = urlParams.get('order_no');
-            
+
             if (paymentSuccess === '1') {
-                // 清除URL参数，避免刷新时重复显示
                 window.history.replaceState({}, document.title, window.location.pathname);
-                
-                // 显示支付成功提示
-                setTimeout(() => {
-                    showPaymentSuccessMessage(orderNo);
-                }, 100);
+                setTimeout(() => showPaymentSuccessMessage(orderNo), 100);
             }
         })();
 
@@ -247,17 +140,18 @@
             document.getElementById('resultCard').style.display = 'block';
 
             document.getElementById('resultContent').innerHTML = `
-                <div style="text-align: center; padding: 20px;">
-                    <div style="width: 80px; height: 80px; background: #d4edda; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 20px; font-size: 40px; color: #28a745;">✓</div>
-                    <h2 style="color: #28a745; margin-bottom: 10px;">支付成功！</h2>
-                    <p style="color: var(--text-secondary); margin-bottom: 25px;">邀请已发送到您的邮箱，请查收并完成加入</p>
+                <div style="text-align: center; padding: 32px 16px;">
+                    <div style="width: 64px; height: 64px; background: var(--success-soft); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 20px; color: var(--success);">
+                        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                    </div>
+                    <h2 style="font-size: 1.5rem; font-weight: 600; letter-spacing: -0.02em; margin-bottom: 8px; color: var(--text-main);">支付成功</h2>
+                    <p style="color: var(--text-secondary); margin-bottom: 28px;">邀请已发送到您的邮箱，请查收并完成加入</p>
                     ${orderNo ? `
-                    <div style="background: var(--bg-secondary); border-radius: 10px; padding: 20px; text-align: left; margin-bottom: 20px;">
-                        <p style="display: flex; justify-content: space-between; margin-bottom: 10px;"><span style="color: var(--text-secondary);">订单号</span><span style="font-family: monospace; font-size: 0.85rem;">${escapeHtml(orderNo)}</span></p>
+                    <div style="background: var(--apple-gray); border-radius: var(--radius-md); padding: 16px 20px; text-align: left; margin-bottom: 24px;">
+                        <p style="display: flex; justify-content: space-between;"><span style="color: var(--text-secondary);">订单号</span><span style="font-family: 'SF Mono', monospace; font-size: 0.8125rem;">${escapeHtml(orderNo)}</span></p>
                     </div>
                     ` : ''}
-                    <p style="color: var(--text-secondary); font-size: 0.9rem;">📧 请查收邮箱中的邀请邮件并完成加入</p>
-                    <button onclick="location.href='/'" class="btn btn-primary" style="margin-top: 20px; width: 100%;">返回首页</button>
+                    <button onclick="location.href='/'" class="btn btn-primary">返回首页</button>
                 </div>
             `;
         }
@@ -269,7 +163,6 @@
                 option.classList.add('selected');
                 selectedMethod = option.dataset.method;
 
-                // 切换表单显示
                 if (selectedMethod === 'redeem') {
                     document.getElementById('paymentForm').classList.remove('active');
                     document.getElementById('redeemForm').classList.add('active');
@@ -277,7 +170,6 @@
                     document.getElementById('paymentForm').classList.add('active');
                     document.getElementById('redeemForm').classList.remove('active');
                 }
-
             });
         });
 
@@ -286,112 +178,77 @@
             try {
                 const response = await fetch('/api/stock/check');
                 const result = await response.json();
-                if (!result.success) {
-                    throw new Error(result.error || '库存检查失败');
-                }
-                if (result.available_spots <= 0) {
-                    throw new Error('暂无可用车位，请稍后再试');
-                }
+                if (!result.success) throw new Error(result.error || '库存检查失败');
+                if (result.available_spots <= 0) throw new Error('暂无可用车位，请稍后再试');
                 return true;
             } catch (error) {
                 throw error;
             }
         }
 
-        // 支付表单提交
+        // 支付表单
         document.getElementById('payForm').addEventListener('submit', async (e) => {
             e.preventDefault();
-
             const email = document.getElementById('payEmail').value;
             const payBtn = document.getElementById('payBtn');
 
-            if (!email) {
-                showToast('请输入邮箱地址', 'error');
-                return;
-            }
+            if (!email) { showToast('请输入邮箱地址', 'error'); return; }
 
             payBtn.disabled = true;
-            payBtn.innerHTML = '<span class="spinner" style="display: inline-block; width: 16px; height: 16px; border: 2px solid rgba(255,255,255,0.3); border-top-color: white; border-radius: 50%; animation: spin 1s linear infinite; margin-right: 8px;"></span>检查库存中...';
+            payBtn.textContent = '检查库存中...';
 
             try {
-                // 先检查库存
                 await checkStock();
-
-                payBtn.innerHTML = '<span class="spinner" style="display: inline-block; width: 16px; height: 16px; border: 2px solid rgba(255,255,255,0.3); border-top-color: white; border-radius: 50%; animation: spin 1s linear infinite; margin-right: 8px;"></span>创建订单中...';
+                payBtn.textContent = '创建订单中...';
 
                 const response = await fetch('/api/payment/create', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        email: email,
-                        pay_type: selectedMethod
-                    })
+                    body: JSON.stringify({ email, pay_type: selectedMethod })
                 });
 
                 const result = await response.json();
-
-                if (!response.ok || !result.success) {
-                    throw new Error(result.detail || result.error || '创建订单失败');
-                }
-
-                if (result.pay_url) {
-                    // 跳转到支付页面，支付完成后由支付平台回调处理业务逻辑
-                    window.location.href = result.pay_url;
-                } else {
-                    throw new Error('未获取到支付信息');
-                }
-
+                if (!response.ok || !result.success) throw new Error(result.detail || result.error || '创建订单失败');
+                if (result.pay_url) { window.location.href = result.pay_url; }
+                else { throw new Error('未获取到支付信息'); }
             } catch (error) {
                 showToast(error.message, 'error');
             } finally {
                 payBtn.disabled = false;
-                payBtn.innerHTML = '<i data-lucide="credit-card"></i> 立即支付 ¥{{ price }}';
-                lucide.createIcons();
+                payBtn.textContent = '立即支付 ¥{{ price }}';
             }
         });
 
-        // 兑换码表单提交
+        // 兑换码表单
         document.getElementById('codeForm').addEventListener('submit', async (e) => {
             e.preventDefault();
-
             const email = document.getElementById('redeemEmail').value.trim();
             const code = document.getElementById('code').value.trim();
             const redeemBtn = document.getElementById('redeemBtn');
 
-            if (!email || !code) {
-                showToast('请填写完整信息', 'error');
-                return;
-            }
+            if (!email || !code) { showToast('请填写完整信息', 'error'); return; }
 
             redeemBtn.disabled = true;
-            redeemBtn.innerHTML = '<span class="spinner" style="display: inline-block; width: 16px; height: 16px; border: 2px solid rgba(255,255,255,0.3); border-top-color: white; border-radius: 50%; animation: spin 1s linear infinite; margin-right: 8px;"></span>兑换中...';
+            redeemBtn.textContent = '兑换中...';
 
             try {
                 const response = await fetch('/redeem/confirm', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        email: email,
-                        code: code,
-                        team_id: null
-                    })
+                    body: JSON.stringify({ email, code, team_id: null })
                 });
 
                 const result = await response.json();
-
                 if (response.ok && result.success) {
                     showSuccessResult(result, email);
                 } else {
-                    const errorMsg = result.detail || result.error || '兑换失败';
-                    showToast(errorMsg, 'error');
+                    showToast(result.detail || result.error || '兑换失败', 'error');
                 }
-
             } catch (error) {
                 showToast('兑换失败: ' + error.message, 'error');
             } finally {
                 redeemBtn.disabled = false;
-                redeemBtn.innerHTML = '<i data-lucide="check-circle"></i> 立即兑换';
-                lucide.createIcons();
+                redeemBtn.textContent = '立即兑换';
             }
         });
 
@@ -402,17 +259,19 @@
 
             const teamInfo = data.team_info || {};
             document.getElementById('resultContent').innerHTML = `
-                <div style="text-align: center; padding: 20px;">
-                    <div style="width: 80px; height: 80px; background: #d4edda; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 20px; font-size: 40px; color: #28a745;">✓</div>
-                    <h2 style="color: #28a745; margin-bottom: 10px;">兑换成功！</h2>
-                    <p style="color: var(--text-secondary); margin-bottom: 25px;">${escapeHtml(data.message || '已成功加入 Team')}</p>
-                    <div style="background: var(--bg-secondary); border-radius: 10px; padding: 20px; text-align: left; margin-bottom: 20px;">
+                <div style="text-align: center; padding: 32px 16px;">
+                    <div style="width: 64px; height: 64px; background: var(--success-soft); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 20px; color: var(--success);">
+                        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                    </div>
+                    <h2 style="font-size: 1.5rem; font-weight: 600; letter-spacing: -0.02em; margin-bottom: 8px; color: var(--text-main);">兑换成功</h2>
+                    <p style="color: var(--text-secondary); margin-bottom: 28px;">${escapeHtml(data.message || '已成功加入 Team')}</p>
+                    <div style="background: var(--apple-gray); border-radius: var(--radius-md); padding: 16px 20px; text-align: left; margin-bottom: 24px;">
                         <p style="display: flex; justify-content: space-between; margin-bottom: 10px;"><span style="color: var(--text-secondary);">邮箱</span><span>${escapeHtml(email)}</span></p>
                         <p style="display: flex; justify-content: space-between; margin-bottom: 10px;"><span style="color: var(--text-secondary);">Team</span><span>${escapeHtml(teamInfo.team_name || '-')}</span></p>
                         ${teamInfo.expires_at ? `<p style="display: flex; justify-content: space-between;"><span style="color: var(--text-secondary);">到期时间</span><span>${formatDate(teamInfo.expires_at)}</span></p>` : ''}
                     </div>
-                    <p style="color: var(--text-secondary); font-size: 0.9rem;">📧 请查收邮箱中的邀请邮件并完成加入</p>
-                    <button onclick="location.reload()" class="btn btn-primary" style="margin-top: 20px; width: 100%;">返回首页</button>
+                    <p style="color: var(--text-secondary); font-size: 0.875rem;">请查收邮箱中的邀请邮件并完成加入</p>
+                    <button onclick="location.reload()" class="btn btn-primary" style="margin-top: 20px;">返回首页</button>
                 </div>
             `;
         }
@@ -420,14 +279,11 @@
         // 质保查询
         async function checkWarranty() {
             const input = document.getElementById('warrantyInput').value.trim();
-            if (!input) {
-                showToast('请输入兑换码或邮箱', 'error');
-                return;
-            }
+            if (!input) { showToast('请输入兑换码或邮箱', 'error'); return; }
 
             const btn = document.getElementById('checkWarrantyBtn');
             btn.disabled = true;
-            btn.innerHTML = '<span class="spinner" style="display: inline-block; width: 14px; height: 14px; border: 2px solid var(--border-base); border-top-color: var(--primary); border-radius: 50%; animation: spin 1s linear infinite; margin-right: 8px;"></span>查询中...';
+            btn.textContent = '查询中...';
 
             try {
                 const response = await fetch('/warranty/check', {
@@ -437,18 +293,13 @@
                 });
 
                 const result = await response.json();
-
-                if (result.success) {
-                    showWarrantyResult(result);
-                } else {
-                    showToast(result.error || '查询失败', 'error');
-                }
+                if (result.success) { showWarrantyResult(result); }
+                else { showToast(result.error || '查询失败', 'error'); }
             } catch (error) {
                 showToast('查询失败: ' + error.message, 'error');
             } finally {
                 btn.disabled = false;
-                btn.innerHTML = '<i data-lucide="search"></i> 查询质保状态';
-                lucide.createIcons();
+                btn.textContent = '查询质保状态';
             }
         }
 
@@ -461,32 +312,32 @@
             let html = '';
 
             if (records.length === 0) {
-                html = '<p style="text-align: center; color: var(--text-secondary); padding: 20px;">未找到相关记录</p>';
+                html = '<p style="text-align: center; color: var(--text-secondary); padding: 32px;">未找到相关记录</p>';
             } else {
                 records.forEach(record => {
-                    let statusColor = '#6b7280';
+                    let statusColor = 'var(--text-muted)';
                     let statusText = '状态未知';
 
                     if (record.status === 'after_sales_available') {
-                        statusColor = '#28a745';
+                        statusColor = 'var(--success)';
                         statusText = '可售后';
                     } else if (record.status === 'normal') {
-                        statusColor = '#1677ff';
+                        statusColor = 'var(--apple-blue)';
                         statusText = '状态正常';
                     } else if (record.status === 'expired') {
-                        statusColor = '#dc3545';
+                        statusColor = 'var(--danger)';
                         statusText = '售后过期';
                     }
 
                     html += `
-                        <div style="background: var(--bg-secondary); border-radius: 10px; padding: 15px; margin-bottom: 10px;">
+                        <div style="background: var(--apple-gray); border-radius: var(--radius-md); padding: 16px 20px; margin-bottom: 12px;">
                             <p style="display: flex; justify-content: space-between; margin-bottom: 8px;">
                                 <span style="color: var(--text-secondary);">来源类型</span>
                                 <span>${record.source_type === 'payment' ? '支付邀请' : '兑换码邀请'}</span>
                             </p>
                             <p style="display: flex; justify-content: space-between; margin-bottom: 8px;">
                                 <span style="color: var(--text-secondary);">标识</span>
-                                <code style="font-size: 0.85rem;">${escapeHtml(record.code || '-')}</code>
+                                <code style="font-size: 0.8125rem; background: none; padding: 0;">${escapeHtml(record.code || '-')}</code>
                             </p>
                             <p style="display: flex; justify-content: space-between; margin-bottom: 8px;">
                                 <span style="color: var(--text-secondary);">状态</span>
@@ -497,7 +348,7 @@
                                 <span>${escapeHtml(record.team_status || '-')}</span>
                             </p>
                             ${record.status_reason ? `
-                            <p style="margin-bottom: 8px; color: var(--text-secondary);">
+                            <p style="margin-bottom: 8px; color: var(--text-secondary); font-size: 0.875rem;">
                                 ${escapeHtml(record.status_reason)}
                             </p>
                             ` : ''}
@@ -508,8 +359,8 @@
                             </p>
                             ` : ''}
                             ${record.status === 'after_sales_available' ? `
-                            <div style="margin-top: 12px;">
-                                <button class="btn btn-primary" style="width: 100%;" onclick="reinviteAfterSales('${escapeHtml(record.email || '')}', '${escapeHtml(record.code || '')}', this)">
+                            <div style="margin-top: 16px;">
+                                <button class="btn btn-primary" onclick="reinviteAfterSales('${escapeHtml(record.email || '')}', '${escapeHtml(record.code || '')}', this)">
                                     立即售后重邀
                                 </button>
                             </div>
@@ -523,12 +374,9 @@
         }
 
         async function reinviteAfterSales(email, code, btn) {
-            if (!email) {
-                showToast('缺少邮箱信息，无法售后重邀', 'error');
-                return;
-            }
-
+            if (!email) { showToast('缺少邮箱信息，无法售后重邀', 'error'); return; }
             if (!btn) return;
+
             const originalText = btn.innerHTML;
             btn.disabled = true;
             btn.innerHTML = '处理中...';
@@ -547,20 +395,16 @@
                 }
 
                 showToast(result.message || '售后重邀成功，请查收邮箱', 'success');
-
                 const teamInfo = result.team_info || {};
                 const infoHtml = `
-                    <div style="margin-top: 12px; padding: 12px; border-radius: 8px; background: rgba(34, 197, 94, 0.1); border: 1px solid rgba(34, 197, 94, 0.25); color: var(--text-primary);">
-                        <div style="font-weight: 600; margin-bottom: 6px;">已发送新 Team 邀请</div>
-                        <div style="font-size: 0.9rem; color: var(--text-secondary);">Team: ${escapeHtml(teamInfo.team_name || '-')}</div>
-                        ${teamInfo.expires_at ? `<div style="font-size: 0.9rem; color: var(--text-secondary);">到期: ${formatDate(teamInfo.expires_at)}</div>` : ''}
+                    <div style="margin-top: 12px; padding: 12px 16px; border-radius: var(--radius-md); background: var(--success-soft); color: var(--text-main);">
+                        <div style="font-weight: 600; margin-bottom: 4px;">已发送新 Team 邀请</div>
+                        <div style="font-size: 0.875rem; color: var(--text-secondary);">Team: ${escapeHtml(teamInfo.team_name || '-')}</div>
+                        ${teamInfo.expires_at ? `<div style="font-size: 0.875rem; color: var(--text-secondary);">到期: ${formatDate(teamInfo.expires_at)}</div>` : ''}
                     </div>
                 `;
-
-                const wrapper = btn.closest('div[style*="background: var(--bg-secondary)"]') || btn.parentElement;
-                if (wrapper) {
-                    wrapper.insertAdjacentHTML('beforeend', infoHtml);
-                }
+                const wrapper = btn.closest('div[style*="background: var(--apple-gray)"]') || btn.parentElement;
+                if (wrapper) wrapper.insertAdjacentHTML('beforeend', infoHtml);
             } catch (error) {
                 showToast('售后重邀失败: ' + error.message, 'error');
             } finally {

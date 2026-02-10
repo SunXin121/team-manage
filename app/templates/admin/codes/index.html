@@ -10,29 +10,29 @@
 <!-- 统计卡片 -->
 <div class="stats-container">
     <div class="stat-card">
-        <div class="stat-icon">🎫</div>
-        <div class="stat-content">
+        <div class="stat-icon"><i data-lucide="ticket" style="width: 20px; height: 20px;"></i></div>
+        <div class="stat-info-group">
             <div class="stat-value">{{ stats.total }}</div>
             <div class="stat-label">兑换码总数</div>
         </div>
     </div>
     <div class="stat-card stat-success">
-        <div class="stat-icon">✅</div>
-        <div class="stat-content">
+        <div class="stat-icon"><i data-lucide="check-circle" style="width: 20px; height: 20px;"></i></div>
+        <div class="stat-info-group">
             <div class="stat-value">{{ stats.unused }}</div>
             <div class="stat-label">未使用</div>
         </div>
     </div>
     <div class="stat-card stat-info">
-        <div class="stat-icon">📝</div>
-        <div class="stat-content">
+        <div class="stat-icon"><i data-lucide="clipboard-check" style="width: 20px; height: 20px;"></i></div>
+        <div class="stat-info-group">
             <div class="stat-value">{{ stats.used }}</div>
             <div class="stat-label">已使用</div>
         </div>
     </div>
     <div class="stat-card stat-danger">
-        <div class="stat-icon">⏰</div>
-        <div class="stat-content">
+        <div class="stat-icon"><i data-lucide="clock" style="width: 20px; height: 20px;"></i></div>
+        <div class="stat-info-group">
             <div class="stat-value">{{ stats.expired }}</div>
             <div class="stat-label">已过期</div>
         </div>
@@ -40,41 +40,40 @@
 </div>
 
 <!-- 操作栏 -->
-<div class="section-header">
-    <div class="header-group">
-        <div class="filter-tabs">
-            <button onclick="filterByStatus('all')" class="filter-tab active" id="filter-all">全部</button>
-            <button onclick="filterByStatus('unused')" class="filter-tab" id="filter-unused">未使用</button>
-            <button onclick="filterByStatus('used')" class="filter-tab" id="filter-used">已使用</button>
-            <button onclick="filterByStatus('expired')" class="filter-tab" id="filter-expired">已过期</button>
+<div class="content-section">
+    <div class="section-header">
+        <div class="header-group">
+            <div class="filter-tabs">
+                <button onclick="filterByStatus('all')" class="filter-tab active" id="filter-all">全部</button>
+                <button onclick="filterByStatus('unused')" class="filter-tab" id="filter-unused">未使用</button>
+                <button onclick="filterByStatus('used')" class="filter-tab" id="filter-used">已使用</button>
+                <button onclick="filterByStatus('expired')" class="filter-tab" id="filter-expired">已过期</button>
+            </div>
+
+            <form action="/admin/codes" method="get" class="search-form">
+                <div class="input-group-clean">
+                    <i data-lucide="search" style="width: 14px; height: 14px;"></i>
+                    <input type="text" name="search" value="{{ search or '' }}" placeholder="搜索兑换码..."
+                        style="width: 160px;">
+                    {% if search %}
+                    <a href="/admin/codes" title="清除搜索" style="display: flex; color: var(--text-dim);">
+                        <i data-lucide="x-circle" style="width: 14px; height: 14px;"></i>
+                    </a>
+                    {% endif %}
+                </div>
+            </form>
         </div>
 
-        <form action="/admin/codes" method="get" class="search-form">
-            <div class="input-group-clean">
-                <i data-lucide="search" style="width: 14px; height: 14px;"></i>
-                <input type="text" name="search" value="{{ search or '' }}" placeholder="搜索兑换码..."
-                    style="width: 180px;">
-                {% if search %}
-                <a href="/admin/codes" title="清除搜索">
-                    <i data-lucide="x-circle" style="width: 14px; height: 14px;"></i>
-                </a>
-                {% endif %}
-            </div>
-        </form>
+        <div class="header-group">
+            <button onclick="showModal('generateCodeModal')" class="btn btn-primary">
+                <i data-lucide="plus" style="width: 16px; height: 16px;"></i> 生成兑换码
+            </button>
+            <button onclick="exportCodes()" class="btn btn-secondary">
+                <i data-lucide="download" style="width: 16px; height: 16px;"></i> 导出
+            </button>
+        </div>
     </div>
 
-    <div class="header-group">
-        <button onclick="showModal('generateCodeModal')" class="btn btn-primary">
-            <i data-lucide="plus-circle" style="width: 16px; height: 16px;"></i> 生成兑换码
-        </button>
-        <button onclick="exportCodes()" class="btn btn-secondary">
-            <i data-lucide="download" style="width: 16px; height: 16px;"></i> 导出
-        </button>
-    </div>
-</div>
-
-<!-- 兑换码列表 -->
-<div class="content-section">
     {% if codes %}
     <div class="table-container">
         <table class="data-table">
@@ -82,7 +81,7 @@
                 <tr>
                     <th style="width: 40px;">
                         <input type="checkbox" id="selectAll" onclick="toggleSelectAll(this)"
-                            style="width: auto; margin: 0;">
+                            style="width: 16px; height: 16px; accent-color: var(--apple-blue);">
                     </th>
                     <th>兑换码</th>
                     <th>状态</th>
@@ -100,11 +99,10 @@
                 <tr data-status="{{ code.status }}">
                     <td>
                         <input type="checkbox" class="code-checkbox" value="{{ code.code }}"
-                            onchange="updateSelectionCount()" style="width: auto; margin: 0;">
+                            onchange="updateSelectionCount()" style="width: 16px; height: 16px; accent-color: var(--apple-blue);">
                     </td>
                     <td>
-                        <div style="display: flex; align-items: center; gap: 0.5rem;">
-                            <i data-lucide="ticket" style="width: 14px; height: 14px; color: var(--text-muted);"></i>
+                        <div style="display: flex; align-items: center; gap: 6px;">
                             <code>{{ code.code }}</code>
                         </div>
                     </td>
@@ -127,7 +125,7 @@
                         {% if code.has_warranty %}
                         <span class="status-badge status-info">是</span>
                         {% else %}
-                        <span class="status-badge" style="background: #f3f4f6; color: #6b7280;">否</span>
+                        <span class="status-badge" style="background: rgba(0,0,0,0.04); color: var(--text-muted);">否</span>
                         {% endif %}
                     </td>
                     <td>
@@ -168,10 +166,10 @@
             已选择 <span id="selectedCount">0</span> 个兑换码
         </div>
         <div class="bulk-actions">
-            <button onclick="showBulkEditModal()" class="btn btn-primary">
-                <i data-lucide="edit-3" style="width: 16px; height: 16px;"></i> 批量修改质保
+            <button onclick="showBulkEditModal()" class="btn btn-primary" style="width: auto;">
+                批量修改质保
             </button>
-            <button onclick="deselectAll()" class="btn btn-secondary">取消全选</button>
+            <button onclick="deselectAll()" class="btn btn-secondary" style="width: auto;">取消全选</button>
         </div>
     </div>
 
@@ -179,29 +177,26 @@
     {% if pagination and pagination.total_pages > 1 %}
     <div class="pagination">
         {% set search_param = '&search=' + search if search else '' %}
-
         {% if pagination.current_page > 1 %}
         <a href="?page=1{{ search_param }}" class="btn btn-sm btn-secondary">首页</a>
         <a href="?page={{ pagination.current_page - 1 }}{{ search_param }}" class="btn btn-sm btn-secondary">
             <i data-lucide="chevron-left" style="width: 14px; height: 14px;"></i>
         </a>
         {% endif %}
-
         <span class="pagination-info">第 {{ pagination.current_page }} / {{ pagination.total_pages }} 页</span>
-
-        {% if pagination.current_page < pagination.total_pages %} <a
-            href="?page={{ pagination.current_page + 1 }}{{ search_param }}" class="btn btn-sm btn-secondary">
+        {% if pagination.current_page < pagination.total_pages %}
+        <a href="?page={{ pagination.current_page + 1 }}{{ search_param }}" class="btn btn-sm btn-secondary">
             <i data-lucide="chevron-right" style="width: 14px; height: 14px;"></i>
-            </a>
-            <a href="?page={{ pagination.total_pages }}{{ search_param }}" class="btn btn-sm btn-secondary">末页</a>
-            {% endif %}
+        </a>
+        <a href="?page={{ pagination.total_pages }}{{ search_param }}" class="btn btn-sm btn-secondary">末页</a>
+        {% endif %}
     </div>
     {% endif %}
     {% else %}
     <div class="empty-state">
-        <i data-lucide="package-open" style="width: 48px; height: 48px; margin-bottom: 1rem; opacity: 0.2;"></i>
-        <p>暂无兑换码数据</p>
-        <button onclick="showModal('generateCodeModal')" class="btn btn-primary">立即生成</button>
+        <i data-lucide="package-open" style="width: 48px; height: 48px; opacity: 0.15;"></i>
+        <p style="margin-top: 12px;">暂无兑换码数据</p>
+        <button onclick="showModal('generateCodeModal')" class="btn btn-primary" style="width: auto; padding: 8px 24px;">立即生成</button>
     </div>
     {% endif %}
 </div>
@@ -214,14 +209,14 @@
             <button class="modal-close" onclick="hideModal('bulkEditCodeModal')">&times;</button>
         </div>
         <div class="modal-body">
-            <div class="alert alert-info" style="margin-bottom: 1rem;">
+            <div class="alert alert-info" style="margin-bottom: 16px;">
                 您正在批量修改 <strong id="bulk-selected-count-display">0</strong> 个兑换码的质保信息。
             </div>
             <form id="bulkEditCodeForm" onsubmit="handleBulkEditCode(event)">
                 <div class="form-group">
-                    <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer; margin-top: 1rem;">
+                    <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; margin-top: 8px;">
                         <input type="checkbox" id="bulk-edit-has-warranty" name="hasWarranty"
-                            style="width: auto; margin: 0;"
+                            style="width: 18px; height: 18px; accent-color: var(--apple-blue);"
                             onchange="toggleWarrantyDays(this, 'bulk-edit-warranty-days-group')">
                         <span>质保兑换码 (可重复使用)</span>
                     </label>
@@ -231,7 +226,7 @@
                     <input type="number" id="bulk-edit-warranty-days" name="warrantyDays" class="form-control"
                         value="30" min="1" max="3650">
                 </div>
-                <button type="submit" class="btn btn-primary" style="margin-top: 1rem;">保存修改</button>
+                <button type="submit" class="btn btn-primary" style="margin-top: 8px;">保存修改</button>
             </form>
         </div>
     </div>
@@ -250,11 +245,12 @@
                 <div class="form-group">
                     <label>兑换码</label>
                     <input type="text" id="edit-code-display" class="form-control" readonly
-                        style="background: rgba(0,0,0,0.05);">
+                        style="background: var(--apple-gray);">
                 </div>
                 <div class="form-group">
-                    <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer; margin-top: 1rem;">
-                        <input type="checkbox" id="edit-has-warranty" name="hasWarranty" style="width: auto; margin: 0;"
+                    <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; margin-top: 8px;">
+                        <input type="checkbox" id="edit-has-warranty" name="hasWarranty"
+                            style="width: 18px; height: 18px; accent-color: var(--apple-blue);"
                             onchange="toggleWarrantyDays(this, 'edit-warranty-days-group')">
                         <span>质保兑换码 (可重复使用)</span>
                     </label>
@@ -264,7 +260,7 @@
                     <input type="number" id="edit-warranty-days" name="warrantyDays" class="form-control" value="30"
                         min="1" max="3650">
                 </div>
-                <button type="submit" class="btn btn-primary" style="margin-top: 1rem;">保存修改</button>
+                <button type="submit" class="btn btn-primary" style="margin-top: 8px;">保存修改</button>
             </form>
         </div>
     </div>
@@ -275,52 +271,38 @@
 <style>
     .bulk-action-bar {
         position: fixed;
-        bottom: 2rem;
+        bottom: 24px;
         left: 50%;
         transform: translateX(-50%);
-        background: white;
-        padding: 1rem 2rem;
-        border-radius: 12px;
-        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+        background: var(--bg-surface);
+        padding: 12px 24px;
+        border-radius: var(--radius-lg);
+        box-shadow: var(--shadow-lg);
         display: flex;
         align-items: center;
-        gap: 2rem;
+        gap: 24px;
         z-index: 100;
-        border: 1px solid var(--border-color);
-        animation: slideUp 0.3s ease-out;
-    }
-
-    @keyframes slideUp {
-        from {
-            transform: translate(-50%, 100%);
-            opacity: 0;
-        }
-
-        to {
-            transform: translate(-50%, 0);
-            opacity: 1;
-        }
+        border: none;
     }
 
     .bulk-info {
         font-weight: 500;
-        color: var(--text-color);
+        color: var(--text-main);
+        font-size: 0.875rem;
     }
 
     .bulk-actions {
         display: flex;
-        gap: 0.5rem;
+        gap: 8px;
     }
 </style>
 {% endblock %}
 
 {% block extra_js %}
 <script>
-    // 全选/取消全选
     function toggleSelectAll(checkbox) {
         const checkboxes = document.querySelectorAll('.code-checkbox');
         checkboxes.forEach(cb => {
-            // 只选择当前显示的行
             if (cb.closest('tr').style.display !== 'none') {
                 cb.checked = checkbox.checked;
             }
@@ -328,57 +310,38 @@
         updateSelectionCount();
     }
 
-    // 取消全选
     function deselectAll() {
         document.getElementById('selectAll').checked = false;
         toggleSelectAll(document.getElementById('selectAll'));
     }
 
-    // 更新选择计数
     function updateSelectionCount() {
         const selected = document.querySelectorAll('.code-checkbox:checked');
         const count = selected.length;
         document.getElementById('selectedCount').innerText = count;
-
-        const actionBar = document.getElementById('bulkActionBar');
-        if (count > 0) {
-            actionBar.style.display = 'flex';
-        } else {
-            actionBar.style.display = 'none';
-        }
+        document.getElementById('bulkActionBar').style.display = count > 0 ? 'flex' : 'none';
     }
 
-    // 显示批量编辑弹窗
     function showBulkEditModal() {
         const selected = document.querySelectorAll('.code-checkbox:checked');
         document.getElementById('bulk-selected-count-display').innerText = selected.length;
         showModal('bulkEditCodeModal');
     }
 
-    // 处理批量编辑
     async function handleBulkEditCode(event) {
         event.preventDefault();
         const selected = document.querySelectorAll('.code-checkbox:checked');
         const codes = Array.from(selected).map(cb => cb.value);
-
         const has_warranty = document.getElementById('bulk-edit-has-warranty').checked;
         const warranty_days = parseInt(document.getElementById('bulk-edit-warranty-days').value) || 30;
 
         try {
             const response = await fetch('/admin/codes/bulk-update', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    codes: codes,
-                    has_warranty: has_warranty,
-                    warranty_days: has_warranty ? warranty_days : null
-                })
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ codes, has_warranty, warranty_days: has_warranty ? warranty_days : null })
             });
-
             const result = await response.json();
-
             if (response.ok && result.success) {
                 showToast('批量更新成功', 'success');
                 hideModal('bulkEditCodeModal');
@@ -387,33 +350,23 @@
                 showToast(result.error || '批量更新失败', 'error');
             }
         } catch (error) {
-            console.error(error);
             showToast('网络错误', 'error');
         }
     }
 
-    // 当前筛选状态
     let currentFilter = 'all';
 
-    // 按状态筛选
     function filterByStatus(status) {
         currentFilter = status;
-
-        // 更新按钮状态
-        document.querySelectorAll('.filter-tab').forEach(btn => {
-            btn.classList.remove('active');
-        });
+        document.querySelectorAll('.filter-tab').forEach(btn => btn.classList.remove('active'));
         document.getElementById(`filter-${status}`).classList.add('active');
 
-        // 筛选表格行
-        const rows = document.querySelectorAll('#codesTableBody tr');
-        rows.forEach(row => {
+        document.querySelectorAll('#codesTableBody tr').forEach(row => {
             const rowStatus = row.getAttribute('data-status');
             if (status === 'all' || rowStatus === status) {
                 row.style.display = '';
             } else {
                 row.style.display = 'none';
-                // 如果行被隐藏，取消其复选框的选择
                 const cb = row.querySelector('.code-checkbox');
                 if (cb) cb.checked = false;
             }
@@ -421,28 +374,17 @@
         updateSelectionCount();
     }
 
-    // 删除兑换码
     async function deleteCode(code) {
-        if (!confirm(`确定要删除兑换码 ${code} 吗?`)) {
-            return;
-        }
-
+        if (!confirm(`确定要删除兑换码 ${code} 吗?`)) return;
         try {
             const response = await fetch(`/admin/codes/${encodeURIComponent(code)}/delete`, {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                }
+                headers: { 'Content-Type': 'application/json' }
             });
-
             const result = await response.json();
-
             if (response.ok && result.success) {
                 showToast('删除成功', 'success');
-                // 刷新页面
-                setTimeout(() => {
-                    window.location.reload();
-                }, 1000);
+                setTimeout(() => window.location.reload(), 1000);
             } else {
                 showToast(result.error || '删除失败', 'error');
             }
@@ -451,16 +393,12 @@
         }
     }
 
-
-    // 导出兑换码
     async function exportCodes() {
         try {
             const urlParams = new URLSearchParams(window.location.search);
             const search = urlParams.get('search') || '';
             const exportUrl = `/admin/codes/export${search ? '?search=' + encodeURIComponent(search) : ''}`;
-
             const response = await fetch(exportUrl);
-
             if (response.ok) {
                 const blob = await response.blob();
                 const url = URL.createObjectURL(blob);
@@ -480,20 +418,13 @@
         }
     }
 
-    // 编辑兑换码
     function editCode(code, hasWarranty, warrantyDays) {
         document.getElementById('edit-code').value = code;
         document.getElementById('edit-code-display').value = code;
-
         const hasWarrantyCheckbox = document.getElementById('edit-has-warranty');
         hasWarrantyCheckbox.checked = hasWarranty;
-
-        const warrantyDaysInput = document.getElementById('edit-warranty-days');
-        warrantyDaysInput.value = warrantyDays || 30;
-
-        // 触发显示/隐藏
+        document.getElementById('edit-warranty-days').value = warrantyDays || 30;
         toggleWarrantyDays(hasWarrantyCheckbox, 'edit-warranty-days-group');
-
         showModal('editCodeModal');
     }
 
@@ -506,17 +437,10 @@
         try {
             const response = await fetch(`/admin/codes/${encodeURIComponent(code)}/update`, {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    has_warranty,
-                    warranty_days: has_warranty ? warranty_days : null
-                })
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ has_warranty, warranty_days: has_warranty ? warranty_days : null })
             });
-
             const result = await response.json();
-
             if (response.ok && result.success) {
                 showToast('更新成功', 'success');
                 hideModal('editCodeModal');
