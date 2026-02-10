@@ -41,7 +41,7 @@ class WarrantyService:
                 select(InviteRecord, Team)
                 .outerjoin(Team, InviteRecord.team_id == Team.id)
                 .where(func.lower(func.trim(InviteRecord.email)) == normalized_email)
-                .where(InviteRecord.source_type.in_(["redeem_code", "payment"]))
+                .where(InviteRecord.source_type.in_(["redeem_code", "payment", "after_sales"]))
                 .order_by(InviteRecord.invited_at.desc(), InviteRecord.id.desc())
                 .limit(1)
             )
@@ -443,13 +443,13 @@ class WarrantyService:
                 }
 
             from app.services.team import TeamService
-            from app.services.invite_record import invite_record_service
 
             team_service = TeamService()
             invite_result = await team_service.add_team_member(
                 target_team.id,
                 latest_snapshot.get("email"),
-                db_session
+                db_session,
+                source_type="after_sales"
             )
             if not invite_result.get("success"):
                 return {
@@ -458,26 +458,6 @@ class WarrantyService:
                     "team_info": None,
                     "error": invite_result.get("error", "发送邀请失败")
                 }
-
-            source_type = latest_snapshot.get("source_type")
-            if source_type not in ["redeem_code", "payment"]:
-                source_type = "redeem_code"
-
-            create_result = await invite_record_service.create_invite_record(
-                db_session=db_session,
-                email=latest_snapshot.get("email"),
-                source_type=source_type,
-                source_code=latest_code if source_type == "redeem_code" else None,
-                order_no=None,
-                team_id=target_team.id,
-                account_id=target_team.account_id,
-                is_warranty_redemption=True,
-                invited_at=get_now()
-            )
-            if create_result.get("success"):
-                await db_session.commit()
-            else:
-                logger.warning(f"售后重邀写入邀请记录失败: {create_result.get('error')}")
 
             return {
                 "success": True,

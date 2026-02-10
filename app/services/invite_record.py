@@ -14,6 +14,13 @@ from app.utils.time_utils import get_now
 
 logger = logging.getLogger(__name__)
 
+SUPPORTED_INVITE_SOURCE_TYPES = {
+    "redeem_code",
+    "payment",
+    "after_sales",
+    "admin_manual"
+}
+
 
 class InviteRecordService:
     """邀请记录服务类"""
@@ -60,7 +67,7 @@ class InviteRecordService:
         if team_id:
             filters.append(InviteRecord.team_id == team_id)
 
-        if source_type in ["redeem_code", "payment"]:
+        if source_type in SUPPORTED_INVITE_SOURCE_TYPES:
             filters.append(InviteRecord.source_type == source_type)
 
         start_at = self._parse_date_start(start_date)
@@ -93,7 +100,7 @@ class InviteRecordService:
         对支付邀请按 order_no 去重，避免重复写入
         """
         try:
-            if source_type not in ["redeem_code", "payment"]:
+            if source_type not in SUPPORTED_INVITE_SOURCE_TYPES:
                 return {
                     "success": False,
                     "created": False,
@@ -311,4 +318,3 @@ class InviteRecordService:
 
 
 invite_record_service = InviteRecordService()
-

@@ -4,7 +4,7 @@ Team 管理服务
 """
 import logging
 from typing import Optional, Dict, Any, List
-from datetime import datetime
+from datetime import datetime, timezone
 from sqlalchemy import select, update, delete, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -12,6 +12,7 @@ from sqlalchemy.orm import selectinload
 from app.models import Team, TeamAccount, TeamMember, RedemptionRecord, InviteRecord, PaymentOrder
 from app.services.chatgpt import ChatGPTService
 from app.services.encryption import encryption_service
+from app.services.invite_record import invite_record_service
 from app.utils.token_parser import TokenParser
 from app.utils.jwt_parser import JWTParser
 from app.utils.time_utils import get_now
@@ -997,6 +998,19 @@ class TeamService:
             结果字典,包含 success, message, error
         """
         try:
+            normalized_email = (email or "").strip().lower()
+
+            pending_invite_member_stmt = (
+                select(TeamMember)
+                .where(TeamMember.team_id == team_id)
+                .where(TeamMember.status == "invited")
+                .where(func.lower(func.trim(TeamMember.email)) == normalized_email)
+                .order_by(TeamMember.added_at.desc(), TeamMember.id.desc())
+                .limit(1)
+            )
+            pending_invite_member_result = await db_session.execute(pending_invite_member_stmt)
+            pending_invite_member = pending_invite_member_result.scalar_one_or_none()
+
             # 1. 查询 Team
             stmt = select(Team).where(Team.id == team_id)
             result = await db_session.execute(stmt)
@@ -1058,6 +1072,44 @@ class TeamService:
                     TeamMember.email == email
                 )
             )
+
+            matched_invite_records_stmt = (
+                select(InviteRecord)
+                .where(InviteRecord.team_id == team_id)
+                .where(func.lower(func.trim(InviteRecord.email)) == normalized_email)
+            )
+            matched_invite_records_result = await db_session.execute(matched_invite_records_stmt)
+            matched_invite_records = matched_invite_records_result.scalars().all()
+
+            invite_record_to_delete = None
+            if matched_invite_records:
+                if len(matched_invite_records) == 1:
+                    invite_record_to_delete = matched_invite_records[0]
+                elif pending_invite_member and pending_invite_member.added_at:
+                    target_time = pending_invite_member.added_at
+                    if target_time.tzinfo:
+                        target_time = target_time.astimezone(timezone.utc).replace(tzinfo=None)
+
+                    best_delta_seconds = None
+                    for record in matched_invite_records:
+                        record_time = record.invited_at
+                        if not record_time:
+                            continue
+                        if record_time.tzinfo:
+                            record_time = record_time.astimezone(timezone.utc).replace(tzinfo=None)
+
+                        delta_seconds = abs((record_time - target_time).total_seconds())
+                        if best_delta_seconds is None or delta_seconds < best_delta_seconds:
+                            best_delta_seconds = delta_seconds
+                            invite_record_to_delete = record
+
+                if not invite_record_to_delete:
+                    invite_record_to_delete = matched_invite_records[0]
+
+            if invite_record_to_delete:
+                await db_session.execute(
+                    delete(InviteRecord).where(InviteRecord.id == invite_record_to_delete.id)
+                )
             
             if team.current_members < team.max_members:
                 if team.status == "full":
@@ -1089,7 +1141,8 @@ class TeamService:
         self,
         team_id: int,
         email: str,
-        db_session: AsyncSession
+        db_session: AsyncSession,
+        source_type: str = "admin_manual"
     ) -> Dict[str, Any]:
         """
         添加 Team 成员
@@ -1098,6 +1151,7 @@ class TeamService:
             team_id: Team ID
             email: 成员邮箱
             db_session: 数据库会话
+            source_type: 邀请记录来源类型
 
         Returns:
             结果字典,包含 success, message, error
@@ -1182,6 +1236,8 @@ class TeamService:
                 )
             )
 
+            invite_time = get_now()
+
             db_session.add(TeamMember(
                 team_id=team_id,
                 user_id=None,
@@ -1189,8 +1245,25 @@ class TeamService:
                 name=None,
                 role="standard-user",
                 status="invited",
-                added_at=get_now()
+                added_at=invite_time
             ))
+
+            invite_record_result = await invite_record_service.create_invite_record(
+                db_session=db_session,
+                email=email,
+                source_type=source_type,
+                team_id=team_id,
+                account_id=team.account_id,
+                invited_at=invite_time
+            )
+            if not invite_record_result["success"]:
+                await db_session.rollback()
+                return {
+                    "success": False,
+                    "message": None,
+                    "error": invite_record_result.get("error", "写入邀请记录失败")
+                }
+
             await db_session.commit()
 
             logger.info(f"添加成员成功: {email} -> Team {team_id}")

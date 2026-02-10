@@ -58,6 +58,8 @@
                 <option value="" {% if not filters.source_type %}selected{% endif %}>全部</option>
                 <option value="redeem_code" {% if filters.source_type == 'redeem_code' %}selected{% endif %}>兑换码</option>
                 <option value="payment" {% if filters.source_type == 'payment' %}selected{% endif %}>支付订单</option>
+                <option value="after_sales" {% if filters.source_type == 'after_sales' %}selected{% endif %}>售后</option>
+                <option value="admin_manual" {% if filters.source_type == 'admin_manual' %}selected{% endif %}>管理员添加</option>
             </select>
         </div>
         <div class="form-group">
@@ -117,6 +119,12 @@
                         {% if record.source_type == 'payment' %}
                             <span class="badge badge-info">支付</span>
                             <code>{{ record.order_no or '-' }}</code>
+                        {% elif record.source_type == 'after_sales' %}
+                            <span class="badge badge-warning">售后</span>
+                            <code>-</code>
+                        {% elif record.source_type == 'admin_manual' %}
+                            <span class="badge badge-primary">管理员添加</span>
+                            <code>-</code>
                         {% else %}
                             <span class="badge badge-secondary">兑换码</span>
                             <code>{{ record.source_code or '-' }}</code>
