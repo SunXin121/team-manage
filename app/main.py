@@ -119,6 +119,43 @@ async def _expired_member_cleanup_loop(
         except Exception as e:
             logger.error(f"到期成员清理任务异常: {e}")
 
+
+async def _warranty_expiry_cleanup_loop(stop_event: asyncio.Event):
+    """每日凌晨执行：清理已过期的质保兑换码状态。"""
+    from app.services.warranty import warranty_service
+
+    while not stop_event.is_set():
+        now = get_now()
+        # 在凌晨 00:05 执行，与到期成员清理错开
+        next_run = now.replace(hour=0, minute=5, second=0, microsecond=0)
+        if next_run <= now:
+            next_run += timedelta(days=1)
+        wait_seconds = max(1, int((next_run - now).total_seconds()))
+
+        logger.info(f"质保过期清理任务下一次将在 {next_run.strftime('%Y-%m-%d %H:%M:%S')} 执行")
+
+        try:
+            await asyncio.wait_for(stop_event.wait(), timeout=wait_seconds)
+            break
+        except asyncio.TimeoutError:
+            pass
+
+        if stop_event.is_set():
+            break
+
+        try:
+            async with AsyncSessionLocal() as session:
+                result = await warranty_service.cleanup_expired_warranties(session)
+
+            if result.get("success"):
+                logger.info(f"质保过期清理完成: 清理 {result.get('cleaned', 0)} 个过期质保码")
+            else:
+                logger.warning(f"质保过期清理失败: {result.get('error')}")
+        except asyncio.CancelledError:
+            raise
+        except Exception as e:
+            logger.error(f"质保过期清理任务异常: {e}")
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """
@@ -129,6 +166,8 @@ async def lifespan(app: FastAPI):
     auto_sync_stop_event = asyncio.Event()
     expired_member_cleanup_task = None
     expired_member_cleanup_stop_event = asyncio.Event()
+    warranty_cleanup_task = None
+    warranty_cleanup_stop_event = asyncio.Event()
 
     logger.info("系统正在启动，正在初始化数据库...")
     try:
@@ -189,6 +228,13 @@ async def lifespan(app: FastAPI):
     else:
         logger.info("到期成员清理任务已禁用")
 
+    # 质保过期清理任务（跟随到期成员清理开关）
+    if settings.expired_member_cleanup_enabled:
+        warranty_cleanup_task = asyncio.create_task(
+            _warranty_expiry_cleanup_loop(warranty_cleanup_stop_event)
+        )
+        logger.info("质保过期清理任务已启动，每日 00:05 执行")
+
     yield
 
     if auto_sync_task:
@@ -208,6 +254,15 @@ async def lifespan(app: FastAPI):
             expired_member_cleanup_task.cancel()
             with suppress(asyncio.CancelledError):
                 await expired_member_cleanup_task
+
+    if warranty_cleanup_task:
+        warranty_cleanup_stop_event.set()
+        try:
+            await asyncio.wait_for(warranty_cleanup_task, timeout=30)
+        except asyncio.TimeoutError:
+            warranty_cleanup_task.cancel()
+            with suppress(asyncio.CancelledError):
+                await warranty_cleanup_task
 
     # 关闭连接
     await close_db()

@@ -1,0 +1,356 @@
+/* ========================================
+   Apple Style - User/Redeem Page
+   ======================================== */
+
+:root {
+    --apple-black: #000000;
+    --apple-white: #ffffff;
+    --apple-gray: #f5f5f7;
+    --apple-gray-dark: #86868b;
+    --apple-gray-medium: #d2d2d7;
+    --apple-blue: #0071e3;
+    --apple-blue-hover: #0077ed;
+    --apple-green: #34c759;
+    --apple-red: #ff3b30;
+
+    --primary: var(--apple-blue);
+    --primary-hover: var(--apple-blue-hover);
+    --primary-soft: rgba(0, 113, 227, 0.08);
+
+    --bg-main: var(--apple-gray);
+    --bg-surface: var(--apple-white);
+    --bg-secondary: var(--apple-gray);
+
+    --text-main: #1d1d1f;
+    --text-primary: #1d1d1f;
+    --text-secondary: #86868b;
+    --text-muted: #86868b;
+    --text-dim: #aeaeb2;
+
+    --border-base: rgba(0, 0, 0, 0.08);
+
+    --success: var(--apple-green);
+    --success-soft: rgba(52, 199, 89, 0.1);
+    --danger: var(--apple-red);
+    --danger-soft: rgba(255, 59, 48, 0.1);
+
+    --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.04);
+    --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.08);
+    --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.12);
+
+    --radius-sm: 8px;
+    --radius-md: 12px;
+    --radius-lg: 18px;
+    --radius-xl: 22px;
+    --radius-full: 9999px;
+
+    --transition-fast: 0.2s ease;
+    --transition-base: 0.3s ease;
+}
+
+*,
+*::before,
+*::after {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Helvetica Neue", Helvetica, Arial, sans-serif;
+    background-color: var(--bg-main);
+    color: var(--text-main);
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 40px 20px;
+    line-height: 1.47;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+/* Container */
+.container {
+    max-width: 480px;
+    width: 100%;
+}
+
+/* Header */
+.header {
+    text-align: center;
+    margin-bottom: 40px;
+}
+
+.header h1 {
+    font-size: 2.25rem;
+    font-weight: 600;
+    letter-spacing: -0.03em;
+    color: var(--text-main);
+    margin-bottom: 8px;
+    line-height: 1.1;
+}
+
+.subtitle {
+    font-size: 1.0625rem;
+    color: var(--text-secondary);
+    font-weight: 400;
+}
+
+/* Card */
+.card {
+    background-color: var(--bg-surface);
+    border: none;
+    border-radius: var(--radius-xl);
+    padding: 32px;
+    box-shadow: var(--shadow-md);
+}
+
+.card h2 {
+    font-size: 1.25rem;
+    font-weight: 600;
+    margin-bottom: 24px;
+    text-align: center;
+    letter-spacing: -0.01em;
+}
+
+.card h3 {
+    font-size: 1rem;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+}
+
+/* Form */
+.form-group {
+    margin-bottom: 20px;
+}
+
+.form-group label {
+    display: block;
+    font-size: 0.875rem;
+    font-weight: 500;
+    margin-bottom: 6px;
+    color: var(--text-main);
+}
+
+.form-input {
+    width: 100%;
+    padding: 11px 14px;
+    border: 1px solid var(--apple-gray-medium);
+    border-radius: var(--radius-md);
+    font-size: 1rem;
+    transition: var(--transition-fast);
+    outline: none;
+    font-family: inherit;
+    color: var(--text-main);
+    background: var(--bg-surface);
+}
+
+.form-input:focus {
+    border-color: var(--apple-blue);
+    box-shadow: 0 0 0 4px rgba(0, 113, 227, 0.12);
+}
+
+.form-input::placeholder {
+    color: var(--text-dim);
+}
+
+.form-help {
+    font-size: 0.8125rem;
+    color: var(--text-secondary);
+    margin-top: 4px;
+}
+
+/* Buttons */
+.btn {
+    width: 100%;
+    padding: 12px;
+    border: none;
+    border-radius: var(--radius-full);
+    font-size: 1rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background-color var(--transition-fast);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    font-family: inherit;
+    letter-spacing: -0.01em;
+}
+
+.btn-primary {
+    background-color: var(--apple-blue);
+    color: var(--apple-white);
+}
+
+.btn-primary:hover {
+    background-color: var(--apple-blue-hover);
+}
+
+.btn-secondary {
+    background-color: transparent;
+    border: 1px solid var(--apple-gray-medium);
+    color: var(--text-main);
+}
+
+.btn-secondary:hover {
+    background-color: rgba(0, 0, 0, 0.03);
+}
+
+/* Method Selector */
+.method-selector {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 28px;
+}
+
+.method-option {
+    flex: 1;
+    padding: 16px 10px;
+    border: 1.5px solid var(--apple-gray-medium);
+    border-radius: var(--radius-lg);
+    cursor: pointer;
+    text-align: center;
+    transition: var(--transition-fast);
+    background: var(--bg-surface);
+}
+
+.method-option:hover {
+    border-color: var(--apple-blue);
+}
+
+.method-option.selected {
+    border-color: var(--apple-blue);
+    background: var(--primary-soft);
+}
+
+.method-option .method-icon {
+    font-size: 24px;
+    margin-bottom: 6px;
+    display: block;
+    color: var(--text-muted);
+}
+
+.method-option.selected .method-icon {
+    color: var(--apple-blue);
+}
+
+.method-option.alipay .method-icon { color: #1677ff; }
+.method-option.wxpay .method-icon { color: #07c160; }
+.method-option.redeem .method-icon { color: var(--apple-blue); }
+
+.method-option .method-name {
+    font-weight: 600;
+    color: var(--text-main);
+    font-size: 0.9375rem;
+}
+
+.method-option .method-desc {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    margin-top: 3px;
+}
+
+/* Payment / Redeem Forms */
+.payment-form,
+.redeem-form {
+    display: none;
+}
+
+.payment-form.active,
+.redeem-form.active {
+    display: block;
+}
+
+/* Spots Badge */
+.spots-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: var(--primary-soft);
+    padding: 6px 14px;
+    border-radius: var(--radius-full);
+    font-size: 0.875rem;
+    color: var(--apple-blue);
+    margin-top: 12px;
+    border: none;
+    font-weight: 500;
+}
+
+/* Toast */
+.toast {
+    position: fixed;
+    top: 24px;
+    left: 50%;
+    transform: translateX(-50%) translateY(-120%);
+    padding: 12px 24px;
+    background: var(--bg-surface);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-lg);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    z-index: 10000;
+    font-size: 0.875rem;
+    font-weight: 500;
+    max-width: 400px;
+    border: none;
+    transition: var(--transition-base);
+}
+
+.toast.show {
+    transform: translateX(-50%) translateY(0);
+}
+
+.toast.success { border-left: 3px solid var(--success); }
+.toast.error { border-left: 3px solid var(--danger); }
+.toast.info { border-left: 3px solid var(--apple-blue); }
+
+/* Animations */
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+/* Responsive */
+@media (max-width: 520px) {
+    body {
+        padding: 24px 16px;
+    }
+
+    .header {
+        margin-bottom: 28px;
+    }
+
+    .header h1 {
+        font-size: 1.75rem;
+    }
+
+    .subtitle {
+        font-size: 0.9375rem;
+    }
+
+    .card {
+        padding: 24px 20px;
+        border-radius: var(--radius-lg);
+    }
+
+    .method-selector {
+        gap: 8px;
+    }
+
+    .method-option {
+        padding: 12px 8px;
+    }
+
+    .toast {
+        left: 16px;
+        right: 16px;
+        transform: translateX(0) translateY(-120%);
+        max-width: none;
+    }
+
+    .toast.show {
+        transform: translateX(0) translateY(0);
+    }
+}

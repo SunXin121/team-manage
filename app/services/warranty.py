@@ -13,22 +13,19 @@ from app.utils.time_utils import get_now
 
 logger = logging.getLogger(__name__)
 
-# 全局频率限制字典: {(type, key): last_time}
-# type: 'email' or 'code'
-_query_rate_limit = {}
-
 
 class WarrantyService:
     """质保服务类"""
 
-    async def _get_latest_invite_snapshot(
+    async def _get_original_invite_snapshot(
         self,
         db_session: AsyncSession,
         email: Optional[str] = None,
         code: Optional[str] = None
     ) -> Optional[Dict[str, Any]]:
         """
-        获取最新邀请快照（优先 invite_records，兼容 redemption_records）
+        获取原始邀请快照（仅 redeem_code/payment），用于锚定30天质保窗口。
+        兼容 redemption_records 历史数据。
         """
         normalized_email = email.strip().lower() if email else None
         normalized_code = code.strip() if code else None
@@ -41,7 +38,7 @@ class WarrantyService:
                 select(InviteRecord, Team)
                 .outerjoin(Team, InviteRecord.team_id == Team.id)
                 .where(func.lower(func.trim(InviteRecord.email)) == normalized_email)
-                .where(InviteRecord.source_type.in_(["redeem_code", "payment", "after_sales"]))
+                .where(InviteRecord.source_type.in_(["redeem_code", "payment"]))
                 .order_by(InviteRecord.invited_at.desc(), InviteRecord.id.desc())
                 .limit(1)
             )
@@ -109,6 +106,45 @@ class WarrantyService:
             "team_expires_at": team.expires_at if team else None,
         }
 
+    async def _get_current_invite_snapshot(
+        self,
+        db_session: AsyncSession,
+        email: str
+    ) -> Optional[Dict[str, Any]]:
+        """
+        获取当前（最新）邀请快照（含 after_sales），用于判断用户当前所在 Team 的状态。
+        """
+        normalized_email = email.strip().lower() if email else None
+        if not normalized_email:
+            return None
+
+        invite_stmt = (
+            select(InviteRecord, Team)
+            .outerjoin(Team, InviteRecord.team_id == Team.id)
+            .where(func.lower(func.trim(InviteRecord.email)) == normalized_email)
+            .where(InviteRecord.source_type.in_(["redeem_code", "payment", "after_sales"]))
+            .order_by(InviteRecord.invited_at.desc(), InviteRecord.id.desc())
+            .limit(1)
+        )
+
+        result = await db_session.execute(invite_stmt)
+        invite_row = result.first()
+        if not invite_row:
+            return None
+
+        invite_record, team = invite_row
+        return {
+            "email": invite_record.email,
+            "source_type": invite_record.source_type,
+            "code": invite_record.source_code,
+            "order_no": invite_record.order_no,
+            "invited_at": invite_record.invited_at,
+            "team_id": invite_record.team_id,
+            "team_name": team.team_name if team else None,
+            "team_status": team.status if team else None,
+            "team_expires_at": team.expires_at if team else None,
+        }
+
     def _judge_after_sales(
         self,
         invited_at,
@@ -116,9 +152,9 @@ class WarrantyService:
     ) -> Dict[str, Any]:
         """
         售后规则：
-        1) 按最新邀请时间起算 30 天
-        2) 30 天内 + Team banned => 可售后
-        3) 30 天内 + Team 非 banned => 正常
+        1) 按原始邀请时间（redeem_code/payment）起算 30 天
+        2) 30 天内 + 当前 Team banned => 可售后
+        3) 30 天内 + 当前 Team 非 banned => 正常
         4) 超过 30 天 => 过期
         """
         if not invited_at:
@@ -184,28 +220,17 @@ class WarrantyService:
                     "error": "必须提供邮箱或兑换码"
                 }
 
-            # 0. 频率限制 (每个邮箱或每个码 30 秒只能查一次)
-            now = get_now()
             normalized_email = email.strip().lower() if email else None
             normalized_code = code.strip() if code else None
-            limit_key = ("email", normalized_email) if normalized_email else ("code", normalized_code)
-            last_time = _query_rate_limit.get(limit_key)
-            if last_time and (now - last_time).total_seconds() < 30:
-                wait_time = int(30 - (now - last_time).total_seconds())
-                return {
-                    "success": False,
-                    "error": f"查询太频繁,请 {wait_time} 秒后再试"
-                }
-            _query_rate_limit[limit_key] = now
 
-            # 1. 按邮箱（或兑换码）查最新一条邀请记录
-            latest_snapshot = await self._get_latest_invite_snapshot(
+            # 1. 获取原始邀请记录（redeem_code/payment），用于锚定30天窗口
+            original_snapshot = await self._get_original_invite_snapshot(
                 db_session,
                 email=normalized_email,
                 code=normalized_code
             )
 
-            if not latest_snapshot:
+            if not original_snapshot:
                 return {
                     "success": True,
                     "has_warranty": False,
@@ -218,21 +243,32 @@ class WarrantyService:
                     "message": "未找到相关邀请记录"
                 }
 
-            # 2. 按 30 天 + Team 状态判定售后状态
+            # 2. 获取当前最新记录（含 after_sales），用于判断当前 Team 状态
+            lookup_email = normalized_email or original_snapshot.get("email", "").strip().lower()
+            current_snapshot = await self._get_current_invite_snapshot(
+                db_session,
+                email=lookup_email
+            )
+            # 如果没有 current（不太可能），fallback 到 original
+            if not current_snapshot:
+                current_snapshot = original_snapshot
+
+            # 3. 用原始 invited_at 算窗口 + 当前 team_status 判封禁
             judgement = self._judge_after_sales(
-                invited_at=latest_snapshot.get("invited_at"),
-                team_status=latest_snapshot.get("team_status")
+                invited_at=original_snapshot.get("invited_at"),
+                team_status=current_snapshot.get("team_status")
             )
 
-            source_code = latest_snapshot.get("code")
+            source_code = original_snapshot.get("code")
             display_code = source_code or "-"
-            invited_at = latest_snapshot.get("invited_at")
+            invited_at = original_snapshot.get("invited_at")
             expires_at = judgement.get("expires_at")
             can_reuse = judgement.get("can_reuse", False)
 
             # 仅兑换码来源才能自动重兑；支付来源可显示售后可处理，但不返回原兑换码
-            original_code = source_code if latest_snapshot.get("source_type") == "redeem_code" else None
+            original_code = source_code if original_snapshot.get("source_type") == "redeem_code" else None
 
+            # record 中 team_* 使用当前快照（用户当前所在 Team）
             record = {
                 "code": display_code,
                 "has_warranty": True,
@@ -242,20 +278,20 @@ class WarrantyService:
                 "status_reason": judgement.get("message"),
                 "can_reuse": can_reuse,
                 "used_at": invited_at.isoformat() if invited_at else None,
-                "team_id": latest_snapshot.get("team_id"),
-                "team_name": latest_snapshot.get("team_name"),
-                "team_status": latest_snapshot.get("team_status"),
-                "team_expires_at": latest_snapshot.get("team_expires_at").isoformat() if latest_snapshot.get("team_expires_at") else None,
-                "email": latest_snapshot.get("email"),
-                "source_type": latest_snapshot.get("source_type")
+                "team_id": current_snapshot.get("team_id"),
+                "team_name": current_snapshot.get("team_name"),
+                "team_status": current_snapshot.get("team_status"),
+                "team_expires_at": current_snapshot.get("team_expires_at").isoformat() if current_snapshot.get("team_expires_at") else None,
+                "email": current_snapshot.get("email"),
+                "source_type": original_snapshot.get("source_type")
             }
 
             banned_teams = []
-            if latest_snapshot.get("team_status") == "banned":
+            if current_snapshot.get("team_status") == "banned":
                 banned_teams.append({
-                    "team_id": latest_snapshot.get("team_id"),
-                    "team_name": latest_snapshot.get("team_name"),
-                    "email": latest_snapshot.get("email"),
+                    "team_id": current_snapshot.get("team_id"),
+                    "team_name": current_snapshot.get("team_name"),
+                    "email": current_snapshot.get("email"),
                     "banned_at": None
                 })
 
@@ -296,13 +332,16 @@ class WarrantyService:
             结果字典,包含 success, can_reuse, reason, error
         """
         try:
-            latest_snapshot = await self._get_latest_invite_snapshot(
+            normalized_email = email.strip().lower() if email else None
+
+            # 获取原始记录（锚定30天窗口）
+            original_snapshot = await self._get_original_invite_snapshot(
                 db_session,
-                email=email,
+                email=normalized_email,
                 code=None
             )
 
-            if not latest_snapshot:
+            if not original_snapshot:
                 return {
                     "success": True,
                     "can_reuse": False,
@@ -310,9 +349,18 @@ class WarrantyService:
                     "error": None
                 }
 
+            # 获取当前记录（判断当前 Team 状态）
+            lookup_email = normalized_email or original_snapshot.get("email", "").strip().lower()
+            current_snapshot = await self._get_current_invite_snapshot(
+                db_session,
+                email=lookup_email
+            )
+            if not current_snapshot:
+                current_snapshot = original_snapshot
+
             judgement = self._judge_after_sales(
-                invited_at=latest_snapshot.get("invited_at"),
-                team_status=latest_snapshot.get("team_status")
+                invited_at=original_snapshot.get("invited_at"),
+                team_status=current_snapshot.get("team_status")
             )
 
             if judgement.get("status") == "expired":
@@ -323,7 +371,7 @@ class WarrantyService:
                     "error": None
                 }
 
-            if latest_snapshot.get("team_status") != "banned":
+            if current_snapshot.get("team_status") != "banned":
                 return {
                     "success": True,
                     "can_reuse": False,
@@ -331,22 +379,22 @@ class WarrantyService:
                     "error": None
                 }
 
-            # 自动重兑仅支持最近一条记录本身是兑换码来源
-            latest_code = (latest_snapshot.get("code") or "").strip()
+            # 自动重兑仅支持原始记录是兑换码来源
+            original_code = (original_snapshot.get("code") or "").strip()
             request_code = (code or "").strip()
-            if latest_snapshot.get("source_type") != "redeem_code" or not latest_code:
+            if original_snapshot.get("source_type") != "redeem_code" or not original_code:
                 return {
                     "success": True,
                     "can_reuse": False,
-                    "reason": "最新邀请不是兑换码来源，无法自动重兑",
+                    "reason": "原始邀请不是兑换码来源，无法自动重兑",
                     "error": None
                 }
 
-            if latest_code != request_code:
+            if original_code != request_code:
                 return {
                     "success": True,
                     "can_reuse": False,
-                    "reason": f"仅支持最近一次邀请使用的兑换码: {latest_code}",
+                    "reason": f"仅支持原始邀请使用的兑换码: {original_code}",
                     "error": None
                 }
 
@@ -390,12 +438,13 @@ class WarrantyService:
                     "error": "邮箱不能为空"
                 }
 
-            latest_snapshot = await self._get_latest_invite_snapshot(
+            # 获取原始记录（锚定30天窗口）
+            original_snapshot = await self._get_original_invite_snapshot(
                 db_session,
                 email=normalized_email,
                 code=None
             )
-            if not latest_snapshot:
+            if not original_snapshot:
                 return {
                     "success": False,
                     "message": None,
@@ -403,9 +452,17 @@ class WarrantyService:
                     "error": "未找到邀请记录"
                 }
 
+            # 获取当前记录（判断当前 Team 状态）
+            current_snapshot = await self._get_current_invite_snapshot(
+                db_session,
+                email=normalized_email
+            )
+            if not current_snapshot:
+                current_snapshot = original_snapshot
+
             judgement = self._judge_after_sales(
-                invited_at=latest_snapshot.get("invited_at"),
-                team_status=latest_snapshot.get("team_status")
+                invited_at=original_snapshot.get("invited_at"),
+                team_status=current_snapshot.get("team_status")
             )
             if judgement.get("status") != "after_sales_available":
                 return {
@@ -415,14 +472,14 @@ class WarrantyService:
                     "error": judgement.get("message", "当前不可售后")
                 }
 
-            latest_code = (latest_snapshot.get("code") or "").strip()
+            original_code = (original_snapshot.get("code") or "").strip()
             request_code = (code or "").strip()
-            if request_code and latest_code and request_code != latest_code:
+            if request_code and original_code and request_code != original_code:
                 return {
                     "success": False,
                     "message": None,
                     "team_info": None,
-                    "error": f"仅支持最近一次邀请使用的标识: {latest_code}"
+                    "error": f"仅支持原始邀请使用的标识: {original_code}"
                 }
 
             # 选择可用 Team（数据库状态）
@@ -447,7 +504,7 @@ class WarrantyService:
             team_service = TeamService()
             invite_result = await team_service.add_team_member(
                 target_team.id,
-                latest_snapshot.get("email"),
+                current_snapshot.get("email"),
                 db_session,
                 source_type="after_sales"
             )
@@ -459,6 +516,10 @@ class WarrantyService:
                     "error": invite_result.get("error", "发送邀请失败")
                 }
 
+            # 计算质保到期时间（基于原始邀请时间）
+            original_invited_at = original_snapshot.get("invited_at")
+            warranty_expires_at = (original_invited_at + timedelta(days=30)).isoformat() if original_invited_at else None
+
             return {
                 "success": True,
                 "message": invite_result.get("message", "已发送新 Team 邀请"),
@@ -466,7 +527,8 @@ class WarrantyService:
                     "team_id": target_team.id,
                     "team_name": target_team.team_name,
                     "account_id": target_team.account_id,
-                    "expires_at": target_team.expires_at.isoformat() if target_team.expires_at else None
+                    "expires_at": target_team.expires_at.isoformat() if target_team.expires_at else None,
+                    "warranty_expires_at": warranty_expires_at
                 },
                 "error": None
             }

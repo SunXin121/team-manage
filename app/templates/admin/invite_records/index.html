@@ -71,9 +71,10 @@
                 <label>来源类型</label>
                 <select name="source_type" class="form-control">
                     <option value="">全部</option>
-                    <option value="redeem" {{ 'selected' if filters.source_type == 'redeem' else '' }}>兑换码</option>
+                    <option value="redeem_code" {{ 'selected' if filters.source_type == 'redeem_code' else '' }}>兑换码</option>
                     <option value="payment" {{ 'selected' if filters.source_type == 'payment' else '' }}>支付</option>
-                    <option value="warranty" {{ 'selected' if filters.source_type == 'warranty' else '' }}>质保</option>
+                    <option value="after_sales" {{ 'selected' if filters.source_type == 'after_sales' else '' }}>售后换车</option>
+                    <option value="admin_manual" {{ 'selected' if filters.source_type == 'admin_manual' else '' }}>手动添加</option>
                 </select>
             </div>
             <div class="form-group">
@@ -112,7 +113,6 @@
                 <tr>
                     <th>邮箱</th>
                     <th>来源</th>
-                    <th>来源编号</th>
                     <th>订单号</th>
                     <th>Team ID</th>
                     <th>Team 名称</th>
@@ -124,21 +124,16 @@
                 <tr>
                     <td>{{ record.email }}</td>
                     <td>
-                        {% if record.source_type == 'redeem' %}
+                        {% if record.source_type == 'redeem_code' %}
                         <span class="status-badge status-active">兑换码</span>
                         {% elif record.source_type == 'payment' %}
                         <span class="status-badge status-info">支付</span>
-                        {% elif record.source_type == 'warranty' %}
-                        <span class="status-badge" style="background: rgba(255, 149, 0, 0.1); color: #ff9500;">质保</span>
+                        {% elif record.source_type == 'after_sales' %}
+                        <span class="status-badge" style="background: rgba(255, 149, 0, 0.1); color: #ff9500;">售后换车</span>
+                        {% elif record.source_type == 'admin_manual' %}
+                        <span class="status-badge" style="background: rgba(142, 142, 147, 0.1); color: #8e8e93;">手动添加</span>
                         {% else %}
                         <span class="status-badge">{{ record.source_type or '-' }}</span>
-                        {% endif %}
-                    </td>
-                    <td>
-                        {% if record.source_code %}
-                        <code>{{ record.source_code }}</code>
-                        {% else %}
-                        -
                         {% endif %}
                     </td>
                     <td>{{ record.order_no or '-' }}</td>

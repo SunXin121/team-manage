@@ -13,8 +13,11 @@
     <div class="container">
         <!-- Header -->
         <div class="header">
+            <div class="header-logo">
+                <i data-lucide="sparkles" style="width: 28px; height: 28px;"></i>
+            </div>
             <h1>加入 ChatGPT Team</h1>
-            <p class="subtitle">选择支付方式或使用兑换码</p>
+            <p class="subtitle">选择支付方式或使用兑换码，即刻开启 AI 之旅</p>
             {% if remaining_spots is not none %}
             <div class="spots-badge">
                 <i data-lucide="users" style="width: 14px; height: 14px;"></i>
@@ -29,18 +32,18 @@
             <div class="method-selector">
                 {% if alipay_enabled %}
                 <div class="method-option alipay {% if alipay_enabled %}selected{% endif %}" data-method="alipay">
-                    <span class="method-icon"><i data-lucide="smartphone" style="width: 24px; height: 24px;"></i></span>
+                    <span class="method-icon"><i data-lucide="smartphone" style="width: 22px; height: 22px;"></i></span>
                     <span class="method-name">支付宝</span>
                 </div>
                 {% endif %}
                 {% if wxpay_enabled %}
                 <div class="method-option wxpay {% if not alipay_enabled %}selected{% endif %}" data-method="wxpay">
-                    <span class="method-icon"><i data-lucide="message-circle" style="width: 24px; height: 24px;"></i></span>
+                    <span class="method-icon"><i data-lucide="message-circle" style="width: 22px; height: 22px;"></i></span>
                     <span class="method-name">微信支付</span>
                 </div>
                 {% endif %}
                 <div class="method-option redeem {% if not alipay_enabled and not wxpay_enabled %}selected{% endif %}" data-method="redeem">
-                    <span class="method-icon"><i data-lucide="ticket" style="width: 24px; height: 24px;"></i></span>
+                    <span class="method-icon"><i data-lucide="ticket" style="width: 22px; height: 22px;"></i></span>
                     <span class="method-name">兑换码</span>
                 </div>
             </div>
@@ -81,34 +84,39 @@
         </div>
 
         <!-- 质保查询卡片 -->
-        <div id="warrantyCard" class="card" style="margin-top: 16px;">
-            <h3 style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px;">
-                <i data-lucide="shield" style="width: 18px; height: 18px; color: var(--apple-blue);"></i>
-                质保查询
-            </h3>
-            <p class="form-help" style="margin-bottom: 16px;">
-                质保兑换码在 Team 被封后可在质保期内重复使用
-            </p>
-            <div class="form-group" style="margin-bottom: 12px;">
-                <input type="text" id="warrantyInput" placeholder="输入兑换码或邮箱查询" class="form-input">
+        <div id="warrantyCard" class="card warranty-card">
+            <div class="warranty-header">
+                <div class="warranty-icon">
+                    <i data-lucide="shield-check" style="width: 16px; height: 16px;"></i>
+                </div>
+                <h3>质保查询</h3>
             </div>
-            <button type="button" class="btn btn-secondary" id="checkWarrantyBtn" onclick="checkWarranty()">
-                查询质保状态
-            </button>
+            <div class="warranty-body">
+                <p class="form-help">30 天质保-Team 被封后可在质保期内重新上车</p>
+                <div class="inline-form">
+                    <input type="text" id="warrantyInput" placeholder="输入邮箱查询" class="form-input">
+                    <button type="button" class="btn btn-secondary" id="checkWarrantyBtn" onclick="checkWarranty()">
+                        查询
+                    </button>
+                </div>
+            </div>
         </div>
 
         <!-- 质保查询结果 -->
-        <div id="warrantyResult" class="card" style="display: none; margin-top: 16px;">
+        <div id="warrantyResult" class="card" style="display: none; margin-top: 12px;">
             <h2>质保查询结果</h2>
             <div id="warrantyContent"></div>
-            <div style="margin-top: 24px;">
-                <button onclick="hideWarrantyResult()" class="btn btn-secondary">返回</button>
-            </div>
+            <div id="warrantyActions" style="margin-top: 20px; display: flex; gap: 10px;"></div>
         </div>
 
         <!-- 兑换结果 -->
-        <div id="resultCard" class="card" style="display: none; margin-top: 16px;">
+        <div id="resultCard" class="card" style="display: none; margin-top: 12px;">
             <div id="resultContent"></div>
+        </div>
+
+        <!-- Footer -->
+        <div class="page-footer">
+            &copy; 2026 GPT Team
         </div>
     </div>
 
@@ -140,15 +148,18 @@
             document.getElementById('resultCard').style.display = 'block';
 
             document.getElementById('resultContent').innerHTML = `
-                <div style="text-align: center; padding: 32px 16px;">
-                    <div style="width: 64px; height: 64px; background: var(--success-soft); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 20px; color: var(--success);">
+                <div class="success-result">
+                    <div class="success-icon">
                         <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>
                     </div>
-                    <h2 style="font-size: 1.5rem; font-weight: 600; letter-spacing: -0.02em; margin-bottom: 8px; color: var(--text-main);">支付成功</h2>
-                    <p style="color: var(--text-secondary); margin-bottom: 28px;">邀请已发送到您的邮箱，请查收并完成加入</p>
+                    <h2>支付成功</h2>
+                    <p class="success-msg">邀请已发送到您的邮箱，请查收并完成加入</p>
                     ${orderNo ? `
-                    <div style="background: var(--apple-gray); border-radius: var(--radius-md); padding: 16px 20px; text-align: left; margin-bottom: 24px;">
-                        <p style="display: flex; justify-content: space-between;"><span style="color: var(--text-secondary);">订单号</span><span style="font-family: 'SF Mono', monospace; font-size: 0.8125rem;">${escapeHtml(orderNo)}</span></p>
+                    <div class="result-info-box">
+                        <div class="info-row">
+                            <span class="info-label">订单号</span>
+                            <span class="info-value mono">${escapeHtml(orderNo)}</span>
+                        </div>
                     </div>
                     ` : ''}
                     <button onclick="location.href='/'" class="btn btn-primary">返回首页</button>
@@ -259,16 +270,27 @@
 
             const teamInfo = data.team_info || {};
             document.getElementById('resultContent').innerHTML = `
-                <div style="text-align: center; padding: 32px 16px;">
-                    <div style="width: 64px; height: 64px; background: var(--success-soft); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 20px; color: var(--success);">
+                <div class="success-result">
+                    <div class="success-icon">
                         <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>
                     </div>
-                    <h2 style="font-size: 1.5rem; font-weight: 600; letter-spacing: -0.02em; margin-bottom: 8px; color: var(--text-main);">兑换成功</h2>
-                    <p style="color: var(--text-secondary); margin-bottom: 28px;">${escapeHtml(data.message || '已成功加入 Team')}</p>
-                    <div style="background: var(--apple-gray); border-radius: var(--radius-md); padding: 16px 20px; text-align: left; margin-bottom: 24px;">
-                        <p style="display: flex; justify-content: space-between; margin-bottom: 10px;"><span style="color: var(--text-secondary);">邮箱</span><span>${escapeHtml(email)}</span></p>
-                        <p style="display: flex; justify-content: space-between; margin-bottom: 10px;"><span style="color: var(--text-secondary);">Team</span><span>${escapeHtml(teamInfo.team_name || '-')}</span></p>
-                        ${teamInfo.expires_at ? `<p style="display: flex; justify-content: space-between;"><span style="color: var(--text-secondary);">到期时间</span><span>${formatDate(teamInfo.expires_at)}</span></p>` : ''}
+                    <h2>兑换成功</h2>
+                    <p class="success-msg">${escapeHtml(data.message || '已成功加入 Team')}</p>
+                    <div class="result-info-box">
+                        <div class="info-row">
+                            <span class="info-label">邮箱</span>
+                            <span class="info-value">${escapeHtml(email)}</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">Team</span>
+                            <span class="info-value">${escapeHtml(teamInfo.team_name || '-')}</span>
+                        </div>
+                        ${teamInfo.expires_at ? `
+                        <div class="info-row">
+                            <span class="info-label">到期时间</span>
+                            <span class="info-value">${formatDate(teamInfo.expires_at)}</span>
+                        </div>
+                        ` : ''}
                     </div>
                     <p style="color: var(--text-secondary); font-size: 0.875rem;">请查收邮箱中的邀请邮件并完成加入</p>
                     <button onclick="location.reload()" class="btn btn-primary" style="margin-top: 20px;">返回首页</button>
@@ -299,7 +321,7 @@
                 showToast('查询失败: ' + error.message, 'error');
             } finally {
                 btn.disabled = false;
-                btn.textContent = '查询质保状态';
+                btn.textContent = '查询';
             }
         }
 
@@ -311,59 +333,66 @@
             const records = data.records || [];
             let html = '';
 
+            let hasAfterSales = false;
+            let afterSalesEmail = '';
+            let afterSalesCode = '';
+
             if (records.length === 0) {
                 html = '<p style="text-align: center; color: var(--text-secondary); padding: 32px;">未找到相关记录</p>';
             } else {
                 records.forEach(record => {
-                    let statusColor = 'var(--text-muted)';
-                    let statusText = '状态未知';
+                    let badgeClass = 'muted';
+                    let statusText = '未知';
 
                     if (record.status === 'after_sales_available') {
-                        statusColor = 'var(--success)';
+                        badgeClass = 'success';
                         statusText = '可售后';
+                        hasAfterSales = true;
+                        afterSalesEmail = record.email || '';
+                        afterSalesCode = record.code || '';
                     } else if (record.status === 'normal') {
-                        statusColor = 'var(--apple-blue)';
-                        statusText = '状态正常';
+                        badgeClass = 'info';
+                        statusText = '正常';
                     } else if (record.status === 'expired') {
-                        statusColor = 'var(--danger)';
-                        statusText = '售后过期';
+                        badgeClass = 'danger';
+                        statusText = '已过期';
                     }
 
+                    // Team 状态 badge
+                    let teamBadgeClass = 'muted';
+                    let teamStatusText = '未知';
+                    const ts = (record.team_status || '').toLowerCase();
+                    if (ts === 'active') { teamBadgeClass = 'info'; teamStatusText = '正常'; }
+                    else if (ts === 'banned') { teamBadgeClass = 'danger'; teamStatusText = '已封禁'; }
+                    else if (ts === 'inactive') { teamBadgeClass = 'muted'; teamStatusText = '未激活'; }
+                    else if (ts === 'expired') { teamBadgeClass = 'danger'; teamStatusText = '已过期'; }
+                    else if (ts === 'error') { teamBadgeClass = 'danger'; teamStatusText = '异常'; }
+                    else if (record.team_status) { teamStatusText = record.team_status; }
+
                     html += `
-                        <div style="background: var(--apple-gray); border-radius: var(--radius-md); padding: 16px 20px; margin-bottom: 12px;">
-                            <p style="display: flex; justify-content: space-between; margin-bottom: 8px;">
-                                <span style="color: var(--text-secondary);">来源类型</span>
-                                <span>${record.source_type === 'payment' ? '支付邀请' : '兑换码邀请'}</span>
+                        <div class="warranty-record">
+                            <p>
+                                <span class="record-label">来源</span>
+                                <span class="record-value">${record.source_type === 'payment' ? '支付' : record.source_type === 'after_sales' ? '售后换车' : '兑换码'}</span>
                             </p>
-                            <p style="display: flex; justify-content: space-between; margin-bottom: 8px;">
-                                <span style="color: var(--text-secondary);">标识</span>
-                                <code style="font-size: 0.8125rem; background: none; padding: 0;">${escapeHtml(record.code || '-')}</code>
+                            <p>
+                                <span class="record-label">售后状态</span>
+                                <span class="status-badge ${badgeClass}">${statusText}</span>
                             </p>
-                            <p style="display: flex; justify-content: space-between; margin-bottom: 8px;">
-                                <span style="color: var(--text-secondary);">状态</span>
-                                <span style="color: ${statusColor}; font-weight: 500;">${statusText}</span>
-                            </p>
-                            <p style="display: flex; justify-content: space-between; margin-bottom: 8px;">
-                                <span style="color: var(--text-secondary);">Team 状态</span>
-                                <span>${escapeHtml(record.team_status || '-')}</span>
+                            <p>
+                                <span class="record-label">Team 状态</span>
+                                <span class="status-badge ${teamBadgeClass}">${escapeHtml(teamStatusText)}</span>
                             </p>
                             ${record.status_reason ? `
-                            <p style="margin-bottom: 8px; color: var(--text-secondary); font-size: 0.875rem;">
+                            <p style="justify-content: flex-start; color: var(--text-secondary); font-size: 0.8125rem;">
                                 ${escapeHtml(record.status_reason)}
                             </p>
                             ` : ''}
                             ${record.warranty_expires_at ? `
-                            <p style="display: flex; justify-content: space-between;">
-                                <span style="color: var(--text-secondary);">售后到期</span>
-                                <span>${formatDate(record.warranty_expires_at)}</span>
+                            <p>
+                                <span class="record-label">售后到期</span>
+                                <span class="record-value">${formatDate(record.warranty_expires_at)}</span>
                             </p>
-                            ` : ''}
-                            ${record.status === 'after_sales_available' ? `
-                            <div style="margin-top: 16px;">
-                                <button class="btn btn-primary" onclick="reinviteAfterSales('${escapeHtml(record.email || '')}', '${escapeHtml(record.code || '')}', this)">
-                                    立即售后重邀
-                                </button>
-                            </div>
                             ` : ''}
                         </div>
                     `;
@@ -371,10 +400,23 @@
             }
 
             document.getElementById('warrantyContent').innerHTML = html;
+
+            // 底部按钮区
+            const actionsEl = document.getElementById('warrantyActions');
+            if (hasAfterSales) {
+                actionsEl.innerHTML = `
+                    <button class="btn btn-primary" style="flex: 1;" id="reinviteBtn" onclick="reinviteAfterSales('${escapeHtml(afterSalesEmail)}', '${escapeHtml(afterSalesCode)}', this)">重新上车</button>
+                    <button onclick="hideWarrantyResult()" class="btn btn-secondary" style="flex: 1;">返回</button>
+                `;
+            } else {
+                actionsEl.innerHTML = `
+                    <button onclick="hideWarrantyResult()" class="btn btn-secondary" style="flex: 1;">返回</button>
+                `;
+            }
         }
 
         async function reinviteAfterSales(email, code, btn) {
-            if (!email) { showToast('缺少邮箱信息，无法售后重邀', 'error'); return; }
+            if (!email) { showToast('缺少邮箱信息', 'error'); return; }
             if (!btn) return;
 
             const originalText = btn.innerHTML;
@@ -390,23 +432,24 @@
 
                 const result = await response.json();
                 if (!response.ok || !result.success) {
-                    showToast(result.detail || result.error || '售后重邀失败', 'error');
+                    showToast(result.detail || result.error || '操作失败', 'error');
                     return;
                 }
 
-                showToast(result.message || '售后重邀成功，请查收邮箱', 'success');
+                showToast(result.message || '重新上车成功，请查收邮箱', 'success');
                 const teamInfo = result.team_info || {};
                 const infoHtml = `
-                    <div style="margin-top: 12px; padding: 12px 16px; border-radius: var(--radius-md); background: var(--success-soft); color: var(--text-main);">
-                        <div style="font-weight: 600; margin-bottom: 4px;">已发送新 Team 邀请</div>
-                        <div style="font-size: 0.875rem; color: var(--text-secondary);">Team: ${escapeHtml(teamInfo.team_name || '-')}</div>
-                        ${teamInfo.expires_at ? `<div style="font-size: 0.875rem; color: var(--text-secondary);">到期: ${formatDate(teamInfo.expires_at)}</div>` : ''}
+                    <div style="margin-top: 12px; padding: 14px 16px; border-radius: var(--radius-md); background: var(--success-soft); color: var(--text-main); border: 1px solid rgba(52, 199, 89, 0.15);">
+                        <div style="font-weight: 600; margin-bottom: 4px; font-size: 0.875rem;">已发送新邀请</div>
+                        <div style="font-size: 0.8125rem; color: var(--text-secondary);">Team: ${escapeHtml(teamInfo.team_name || '-')}</div>
+                        ${teamInfo.expires_at ? `<div style="font-size: 0.8125rem; color: var(--text-secondary);">Team 订阅到期: ${formatDate(teamInfo.expires_at)}</div>` : ''}
+                        ${teamInfo.warranty_expires_at ? `<div style="font-size: 0.8125rem; color: var(--text-secondary);">质保到期: ${formatDate(teamInfo.warranty_expires_at)}</div>` : ''}
                     </div>
                 `;
-                const wrapper = btn.closest('div[style*="background: var(--apple-gray)"]') || btn.parentElement;
+                const wrapper = document.getElementById('warrantyContent');
                 if (wrapper) wrapper.insertAdjacentHTML('beforeend', infoHtml);
             } catch (error) {
-                showToast('售后重邀失败: ' + error.message, 'error');
+                showToast('操作失败: ' + error.message, 'error');
             } finally {
                 btn.disabled = false;
                 btn.innerHTML = originalText;
