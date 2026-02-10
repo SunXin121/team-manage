@@ -223,7 +223,6 @@ app.include_router(auth.router)
 app.include_router(admin.router)
 app.include_router(api.router)
 app.include_router(payment.router, prefix="/api")  # 支付API路由
-app.include_router(payment.router)  # 支付页面路由（如回调结果页）
 
 
 @app.get("/login", response_class=HTMLResponse)

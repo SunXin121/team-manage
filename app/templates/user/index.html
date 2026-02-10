@@ -76,131 +76,10 @@
             display: block;
         }
 
-        .price-display {
-            text-align: center;
-            padding: 20px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            border-radius: 12px;
-            color: white;
-            margin-bottom: 20px;
-        }
-
-        .price-display .amount {
-            font-size: 2.2rem;
-            font-weight: bold;
-        }
-
-        .price-display .amount small {
-            font-size: 1rem;
-            opacity: 0.8;
-        }
-
-        .price-display .product-name {
-            font-size: 0.95rem;
-            opacity: 0.9;
-            margin-top: 5px;
-        }
-
-        .features-list {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 10px;
-            margin-bottom: 20px;
-            padding: 15px;
-            background: var(--bg-secondary);
-            border-radius: 10px;
-        }
-
-        .feature-item {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            font-size: 0.9rem;
-            color: var(--text-secondary);
-        }
-
-        .feature-item i {
-            color: var(--success);
-            width: 16px;
-            height: 16px;
-        }
-
-        .qrcode-container {
-            display: none;
-            text-align: center;
-            padding: 25px;
-            background: white;
-            border-radius: 12px;
-            margin-top: 20px;
-            border: 1px solid var(--border-base);
-        }
-
-        .qrcode-container img {
-            max-width: 200px;
-            border-radius: 8px;
-            border: 1px solid var(--border-base);
-        }
-
-        .qrcode-container .tip {
-            margin-top: 15px;
-            color: var(--text-secondary);
-            font-size: 0.9rem;
-        }
-
-        .countdown {
-            display: inline-flex;
-            align-items: center;
-            gap: 5px;
-            color: #ff6b6b;
-            font-weight: 500;
-        }
-
-        .status-checking {
-            display: none;
-            text-align: center;
-            padding: 15px;
-            color: var(--text-secondary);
-            background: var(--bg-secondary);
-            border-radius: 8px;
-            margin-top: 15px;
-        }
-
-        .status-checking .spinner {
-            display: inline-block;
-            width: 18px;
-            height: 18px;
-            border: 2px solid var(--border-base);
-            border-top-color: var(--primary);
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-            margin-right: 8px;
-            vertical-align: middle;
-        }
-
         @keyframes spin {
             to {
                 transform: rotate(360deg);
             }
-        }
-
-        .divider {
-            display: flex;
-            align-items: center;
-            margin: 25px 0;
-            color: var(--text-secondary);
-        }
-
-        .divider::before,
-        .divider::after {
-            content: '';
-            flex: 1;
-            height: 1px;
-            background: var(--border-base);
-        }
-
-        .divider span {
-            padding: 0 15px;
-            font-size: 0.85rem;
         }
 
         .warranty-section {
@@ -218,15 +97,7 @@
             gap: 8px;
         }
 
-        @media (max-width: 480px) {
-            .method-selector {
-                flex-direction: column;
-            }
 
-            .features-list {
-                grid-template-columns: 1fr;
-            }
-        }
     </style>
 </head>
 
@@ -280,21 +151,7 @@
                     </button>
                 </form>
 
-                <!-- 二维码显示区域 -->
-                <div class="qrcode-container" id="qrcodeContainer">
-                    <p style="margin-bottom: 10px; color: var(--text-secondary);">请使用<span id="payTypeName">支付宝</span>扫码支付</p>
-                    <img id="qrcodeImg" src="" alt="支付二维码">
-                    <div class="tip">
-                        <span class="countdown" id="countdown">05:00</span>
-                        <span> 后二维码过期</span>
-                    </div>
-                </div>
 
-                <!-- 状态检查提示 -->
-                <div class="status-checking" id="statusChecking">
-                    <span class="spinner"></span>
-                    <span>正在确认支付状态...</span>
-                </div>
             </div>
 
             <!-- 兑换码表单 -->
@@ -365,9 +222,7 @@
 
         // 全局变量 - 根据可用支付方式设置默认值
         let selectedMethod = alipayEnabled ? 'alipay' : (wxpayEnabled ? 'wxpay' : 'redeem');
-        let currentOrderNo = null;
-        let countdownInterval = null;
-        let expiresAt = null;
+
 
         // 检查URL参数，处理支付成功跳转回来的情况
         (function checkPaymentSuccess() {
@@ -423,8 +278,6 @@
                     document.getElementById('redeemForm').classList.remove('active');
                 }
 
-                // 重置状态
-                resetPaymentState();
             });
         });
 
@@ -481,12 +334,7 @@
                     throw new Error(result.detail || result.error || '创建订单失败');
                 }
 
-                currentOrderNo = result.order_no;
-                expiresAt = result.expires_at ? new Date(result.expires_at) : null;
-
-                if (result.qr_code) {
-                    showQRCode(result.qr_code);
-                } else if (result.pay_url) {
+                if (result.pay_url) {
                     // 跳转到支付页面，支付完成后由支付平台回调处理业务逻辑
                     window.location.href = result.pay_url;
                 } else {
@@ -546,57 +394,6 @@
                 lucide.createIcons();
             }
         });
-
-        function showQRCode(qrUrl) {
-            const container = document.getElementById('qrcodeContainer');
-            const img = document.getElementById('qrcodeImg');
-            const payTypeName = document.getElementById('payTypeName');
-
-            img.src = qrUrl;
-            payTypeName.textContent = selectedMethod === 'alipay' ? '支付宝' : '微信';
-            container.style.display = 'block';
-
-            startCountdown();
-            lucide.createIcons();
-        }
-
-        function startCountdown() {
-            if (countdownInterval) clearInterval(countdownInterval);
-
-            countdownInterval = setInterval(() => {
-                if (!expiresAt) return;
-
-                const now = new Date();
-                const diff = expiresAt - now;
-
-                if (diff <= 0) {
-                    clearInterval(countdownInterval);
-                    document.getElementById('countdown').textContent = '已过期';
-                    document.getElementById('qrcodeContainer').innerHTML = '<p style="color: #ff6b6b; padding: 20px;">订单已过期，请重新创建</p>';
-                    stopStatusCheck();
-                    return;
-                }
-
-                const minutes = Math.floor(diff / 60000);
-                const seconds = Math.floor((diff % 60000) / 1000);
-                document.getElementById('countdown').textContent =
-                    `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
-            }, 1000);
-        }
-
-        function stopCountdown() {
-            if (countdownInterval) {
-                clearInterval(countdownInterval);
-                countdownInterval = null;
-            }
-        }
-
-        function resetPaymentState() {
-            stopCountdown();
-            document.getElementById('qrcodeContainer').style.display = 'none';
-            currentOrderNo = null;
-            expiresAt = null;
-        }
 
         function showSuccessResult(data, email) {
             document.getElementById('mainCard').style.display = 'none';

@@ -186,69 +186,6 @@ body {
     border-left: 4px solid var(--danger);
 }
 
-/* Steps */
-.step {
-    display: none;
-}
-
-.step.active {
-    display: block;
-}
-
-/* Result */
-.result-success {
-    text-align: center;
-}
-
-.result-error {
-    text-align: center;
-}
-
-.result-icon {
-    font-size: 3rem;
-    margin-bottom: 1rem;
-}
-
-.result-title {
-    font-size: 1.5rem;
-    font-weight: 800;
-    margin-bottom: 0.5rem;
-}
-
-.result-message {
-    color: var(--text-muted);
-    margin-bottom: 2rem;
-}
-
-.result-details {
-    background-color: var(--bg-main);
-    border-radius: var(--radius-md);
-    padding: 1rem;
-    text-align: left;
-    margin-bottom: 2rem;
-}
-
-.result-detail-item {
-    display: flex;
-    justify-content: space-between;
-    padding: 0.75rem 0;
-    border-bottom: 1px solid var(--border-base);
-}
-
-.result-detail-item:last-child {
-    border-bottom: none;
-}
-
-.result-detail-label {
-    font-size: 0.875rem;
-    color: var(--text-muted);
-}
-
-.result-detail-value {
-    font-size: 0.875rem;
-    font-weight: 600;
-}
-
 /* Mobile Responsiveness */
 @media (max-width: 480px) {
     body {
